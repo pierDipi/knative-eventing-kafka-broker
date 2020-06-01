@@ -19,7 +19,20 @@
     <mokito.junit.jupiter.version>3.3.3</mokito.junit.jupiter.version>
     <maven.shade.plugin.version>3.2.3</maven.shade.plugin.version>
     <maven.checkstyle.plugin.version>3.1.1</maven.checkstyle.plugin.version>
+    <vertx.version>3.9.1</vertx.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.vertx</groupId>
+        <artifactId>vertx-stack-depchain</artifactId>
+        <version>${vertx.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <modules>
     <module>core</module>
