@@ -22,5 +22,7 @@ kubectl create namespace kafka
 curl -L "https://github.com/strimzi/strimzi-kafka-operator/releases/download/${strimzi_version}/strimzi-cluster-operator-${strimzi_version}.yaml" |
   sed 's/namespace: .*/namespace: kafka/' |
   kubectl -n kafka apply -f -
+
+sleep 5
 header_text "Applying Strimzi Cluster file"
 kubectl -n kafka apply -f "https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/${strimzi_version}/examples/kafka/kafka-ephemeral-single.yaml"

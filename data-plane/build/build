@@ -14,6 +14,10 @@ SKIP_PUSH=false
 if [[ $1 == "--skip-push" ]]; then
   SKIP_PUSH=true
 fi
+WITH_KIND=false
+if [[ $2 == "--with-kind" ]]; then
+  WITH_KIND=true
+fi
 
 function push() {
   if ! ${SKIP_PUSH}; then
@@ -21,11 +25,19 @@ function push() {
   fi
 }
 
+function with_kind() {
+  if ${WITH_KIND}; then
+    kind load docker-image "$1"
+  fi
+}
+
 function receiver_build_push() {
   echo "Building receiver ..."
 
   docker build -f build/receiver/Dockerfile -t "${KNATIVE_KAFKA_BROKER_RECEIVER_IMAGE}" . &&
-    push "${KNATIVE_KAFKA_BROKER_RECEIVER_IMAGE}"
+    push "${KNATIVE_KAFKA_BROKER_RECEIVER_IMAGE}" &&
+    with_kind "${KNATIVE_KAFKA_BROKER_RECEIVER_IMAGE}"
+
   return $?
 }
 
