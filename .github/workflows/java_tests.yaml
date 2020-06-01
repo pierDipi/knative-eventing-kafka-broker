@@ -1,0 +1,17 @@
+name: Data Plane tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  java_tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build Docker image
+        run: docker build --file data-plane/build/test/Dockerfile --tag tests:$(date +%s) .
