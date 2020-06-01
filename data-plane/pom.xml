@@ -36,7 +36,6 @@
 
   <modules>
     <module>core</module>
-    <module>vertx</module>
     <module>receiver</module>
     <module>dispatcher</module>
   </modules>
