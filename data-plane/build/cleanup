@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+source build/common
+
+k8s delete --ignore-not-found
