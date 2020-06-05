@@ -5,6 +5,7 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import java.util.function.Function;
 
+@FunctionalInterface
 public interface RequestToRecordMapper<K, V> extends
     Function<HttpServerRequest, Future<KafkaProducerRecord<K, V>>> {
 
