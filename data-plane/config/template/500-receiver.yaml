@@ -34,7 +34,7 @@ spec:
             - name: INGRESS_PORT
               value: "8080"
             - name: PRODUCER_CONFIG_FILE_PATH
-              value: /etc/config/config-kafka-broker-producer
+              value: /etc/config/config-kafka-broker-producer.properties
             - name: LIVENESS_PROBE_PATH
               value: /healthz
             - name: READINESS_PROBE_PATH

@@ -2,22 +2,20 @@ package dev.knative.eventingkafkabroker.receiver;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.refEq;
-import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.vertx.core.AsyncResult;
-import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
+import io.vertx.junit5.VertxExtension;
 import io.vertx.kafka.client.producer.KafkaProducer;
-import io.vertx.kafka.client.producer.KafkaProducerRecord;
-import io.vertx.kafka.client.producer.RecordMetadata;
-import java.util.Optional;
+import io.vertx.kafka.client.producer.impl.KafkaProducerRecordImpl;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+@ExtendWith(VertxExtension.class)
 public class RequestHandlerTest {
 
   @Test
@@ -32,31 +30,19 @@ public class RequestHandlerTest {
 
   @SuppressWarnings({"unchecked"})
   private static void shouldSendRecord(boolean failedToSend, int statusCode) {
-    final var record = mock(KafkaProducerRecord.class);
+    final var record = new KafkaProducerRecordImpl<Object, Object>(
+        "topic", "key", "value", 10
+    );
 
     final RequestToRecordMapper<Object, Object> mapper
-        = (request, optionalConsumer) -> optionalConsumer.accept(Optional.of(record));
+        = (request, optionalConsumer) -> optionalConsumer.accept(record);
 
-    final var producer = mock(KafkaProducer.class);
-    when(producer.send(same(record), any())).thenAnswer(invocationOnMock -> {
-
-      // get the handler provided and then call it passing a mocked AsyncResult.
-
-      final var handler = (Handler<AsyncResult<RecordMetadata>>) invocationOnMock
-          .getArgument(1, Handler.class);
-
-      final var result = mock(AsyncResult.class);
-      when(result.failed()).thenReturn(failedToSend);
-      when(result.succeeded()).thenReturn(!failedToSend);
-
-      handler.handle(result);
-      return producer;
-    });
+    final var producer = new ProducerDriver<>().producer(failedToSend);
 
     final var request = mock(HttpServerRequest.class);
     final var response = mockResponse(request, statusCode);
 
-    final var handler = new RequestHandler<Object, Object>(producer, mapper);
+    final var handler = new RequestHandler<>(producer, mapper);
     handler.handle(request);
 
     verify(producer, times(1)).send(refEq(record), any());
@@ -69,7 +55,7 @@ public class RequestHandlerTest {
     final var producer = mock(KafkaProducer.class);
 
     final RequestToRecordMapper<Object, Object> mapper
-        = (request, optionalConsumer) -> optionalConsumer.accept(Optional.empty());
+        = (request, optionalConsumer) -> optionalConsumer.accept(null);
 
     final var request = mock(HttpServerRequest.class);
     final var response = mockResponse(request, RequestHandler.MAPPER_FAILED);
@@ -97,5 +83,4 @@ public class RequestHandlerTest {
     when(request.response()).thenReturn(response);
     return response;
   }
-
 }

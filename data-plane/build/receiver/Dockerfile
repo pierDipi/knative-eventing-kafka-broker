@@ -8,11 +8,11 @@ COPY receiver/pom.xml receiver/pom.xml
 COPY dispatcher/pom.xml dispatcher/pom.xml
 COPY checkstyle/suppression.xml checkstyle/suppression.xml
 
-RUN mvn install
+RUN mvn install -pl receiver
 
 COPY . .
 
-RUN mvn package
+RUN mvn package -pl receiver
 
 FROM adoptopenjdk:14-jre-hotspot as running
 RUN groupadd -g 999 appuser && useradd -r -u 999 -g appuser appuser

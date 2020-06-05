@@ -9,7 +9,6 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Consumer;
 
 /**
@@ -21,9 +20,9 @@ import java.util.function.Consumer;
  */
 public class RequestHandler<K, V> implements Handler<HttpServerRequest> {
 
-  static final int MAPPER_FAILED = BAD_REQUEST.code();
-  static final int FAILED_TO_PRODUCE_STATUS_CODE = SERVICE_UNAVAILABLE.code();
-  static final int RECORD_PRODUCED = ACCEPTED.code();
+  public static final int MAPPER_FAILED = BAD_REQUEST.code();
+  public static final int FAILED_TO_PRODUCE_STATUS_CODE = SERVICE_UNAVAILABLE.code();
+  public static final int RECORD_PRODUCED = ACCEPTED.code();
 
   private final KafkaProducer<K, V> producer;
   private final RequestToRecordMapper<K, V> requestToRecordMapper;
@@ -50,14 +49,14 @@ public class RequestHandler<K, V> implements Handler<HttpServerRequest> {
     requestToRecordMapper.accept(request, consumer(request));
   }
 
-  private Consumer<Optional<KafkaProducerRecord<K, V>>> consumer(final HttpServerRequest request) {
+  private Consumer<KafkaProducerRecord<K, V>> consumer(final HttpServerRequest request) {
     return record -> {
-      if (record.isEmpty()) {
+      if (record == null) {
         request.response().setStatusCode(MAPPER_FAILED).end();
         return;
       }
 
-      producer.send(record.get(), metadataResult -> {
+      producer.send(record, metadataResult -> {
 
         if (metadataResult.failed()) {
           request.response().setStatusCode(FAILED_TO_PRODUCE_STATUS_CODE).end();

@@ -8,7 +8,7 @@ KNATIVE_KAFKA_BROKER_RECEIVER_IMAGE="${KO_DOCKER_REPO}"/"${receiver}"
 readonly dispatcher="${KNATIVE_KAFKA_BROKER_DISPATCHER:-knative-kafka-broker-dispatcher}":"${uuid}"
 KNATIVE_KAFKA_BROKER_DISPATCHER_IMAGE="${KO_DOCKER_REPO}"/"${dispatcher}"
 
-source build/common
+source build/common.sh
 
 SKIP_PUSH=false
 if [[ $1 == "--skip-push" ]]; then

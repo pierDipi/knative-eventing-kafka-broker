@@ -1,7 +1,8 @@
 package dev.knative.eventingkafkabroker.receiver;
 
 import static dev.knative.eventingkafkabroker.receiver.CloudEventRequestToRecordMapper.topic;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
@@ -9,25 +10,25 @@ public class CloudEventRequestToRecordMapperTest {
 
   @Test
   public void shouldReturnEmptyTopicIfRootPath() {
-    assertTrue(topic("/").isEmpty());
-    assertTrue(topic("").isEmpty());
+    assertNull(topic("/"));
+    assertNull(topic(""));
   }
 
   @Test
   public void shouldReturnEmptyTopicIfNoBrokerName() {
-    assertTrue(topic("/broker-namespace").isEmpty());
-    assertTrue(topic("/broker-namespace/").isEmpty());
+    assertNull(topic("/broker-namespace"));
+    assertNull(topic("/broker-namespace/"));
   }
 
   @Test
   public void shouldReturnTopicNameIfCorrectPath() {
-    assertTrue(topic("/broker-namespace/broker-name").isPresent());
-    assertTrue(topic("/broker-namespace/broker-name/").isPresent());
+    assertNotNull(topic("/broker-namespace/broker-name"));
+    assertNotNull(topic("/broker-namespace/broker-name/"));
   }
 
   @Test
   public void shouldReturnEmptyIfBrokerNamespaceAndBrokerNameAreFollowedBySomething() {
-    assertTrue(topic("/broker-namespace/broker-name/something").isEmpty());
-    assertTrue(topic("/broker-namespace/broker-name/something/").isEmpty());
+    assertNull(topic("/broker-namespace/broker-name/something"));
+    assertNull(topic("/broker-namespace/broker-name/something/"));
   }
 }

@@ -16,6 +16,7 @@
     <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
     <maven.surefire.plugin.version>3.0.0-M4</maven.surefire.plugin.version>
     <junit.jupiter.version>5.6.2</junit.jupiter.version>
+    <junit.platform.version>1.6.2</junit.platform.version>
     <mokito.junit.jupiter.version>3.3.3</mokito.junit.jupiter.version>
     <maven.shade.plugin.version>3.2.4</maven.shade.plugin.version>
     <maven.checkstyle.plugin.version>3.1.1</maven.checkstyle.plugin.version>
@@ -121,6 +122,12 @@
       <artifactId>vertx-kafka-client</artifactId>
       <version>${vertx.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-junit5</artifactId>
+      <version>${vertx.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <!-- TODO(pierDipi) structured logging  -->
     <dependency>
@@ -132,6 +139,12 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
       <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
