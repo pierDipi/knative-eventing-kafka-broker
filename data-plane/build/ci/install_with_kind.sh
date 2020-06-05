@@ -7,5 +7,5 @@ cd data-plane || exit 1
 ./build/kafka_setup.sh
 sleep 60
 kubectl wait -n kafka --for=condition=ready --timeout=120s pods --all
-./build/build --skip-push --with-kind
+./build/build.sh --skip-push --with-kind
 kubectl wait -n knative-eventing --for=condition=ready --timeout=60s pods --all

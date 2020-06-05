@@ -9,13 +9,10 @@ import static org.mockito.Mockito.when;
 
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
-import io.vertx.junit5.VertxExtension;
 import io.vertx.kafka.client.producer.KafkaProducer;
 import io.vertx.kafka.client.producer.impl.KafkaProducerRecordImpl;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-@ExtendWith(VertxExtension.class)
 public class RequestHandlerTest {
 
   @Test
@@ -28,7 +25,6 @@ public class RequestHandlerTest {
     shouldSendRecord(true, RequestHandler.FAILED_TO_PRODUCE_STATUS_CODE);
   }
 
-  @SuppressWarnings({"unchecked"})
   private static void shouldSendRecord(boolean failedToSend, int statusCode) {
     final var record = new KafkaProducerRecordImpl<Object, Object>(
         "topic", "key", "value", 10

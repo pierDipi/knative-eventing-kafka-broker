@@ -71,6 +71,12 @@ public class ProducerDriver<K, V> {
     return records.size();
   }
 
+  /**
+   * Record class is used for comparing record.
+   *
+   * @param <K> record key type.
+   * @param <V> record value type.
+   */
   private static final class Record<K, V> {
 
     final String topic;
