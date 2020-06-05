@@ -1,13 +1,13 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.message.Message;
 import io.cloudevents.http.vertx.VertxMessageFactory;
 import io.cloudevents.lang.Nullable;
+import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import java.util.StringTokenizer;
-import java.util.function.Consumer;
 
 public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<String, CloudEvent> {
 
@@ -15,32 +15,23 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
   static final String PATH_DELIMITER = "/";
   static final String TOPIC_DELIMITER = "-";
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public void accept(
-      final HttpServerRequest request,
-      final Consumer<KafkaProducerRecord<String, CloudEvent>> recordConsumer) {
+  public Future<KafkaProducerRecord<String, CloudEvent>> apply(final HttpServerRequest request) {
 
-    VertxMessageFactory.fromHttpServerRequest(request)
+    return VertxMessageFactory.fromHttpServerRequest(request)
         .map(Message::toEvent)
-        .onComplete(result -> {
-
-          if (result.failed()) {
-            recordConsumer.accept(null);
-            return;
+        .map(event -> {
+          if (event == null) {
+            return null;
           }
 
           final var topic = topic(request.path());
           if (topic == null) {
-            recordConsumer.accept(null);
-            return;
+            return null;
           }
 
           // TODO(pierDipi) set the correct producer record key
-          final var record = KafkaProducerRecord.create(topic, "", result.result());
-          recordConsumer.accept(record);
+          return KafkaProducerRecord.create(topic, "", event);
         });
   }
 
@@ -58,4 +49,5 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
 
     return String.join(TOPIC_DELIMITER, tokenizer.nextToken(), tokenizer.nextToken());
   }
+
 }

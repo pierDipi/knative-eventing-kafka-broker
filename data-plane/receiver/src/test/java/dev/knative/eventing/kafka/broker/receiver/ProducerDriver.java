@@ -1,4 +1,4 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;

@@ -1,6 +1,6 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
-import static dev.knative.eventingkafkabroker.receiver.CloudEventRequestToRecordMapper.topic;
+import static dev.knative.eventing.kafka.broker.receiver.CloudEventRequestToRecordMapper.topic;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 

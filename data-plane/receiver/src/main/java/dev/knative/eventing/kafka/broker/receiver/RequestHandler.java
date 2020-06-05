@@ -1,4 +1,4 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.ACCEPTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -7,9 +7,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE
 import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducer;
-import io.vertx.kafka.client.producer.KafkaProducerRecord;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * RequestHandler is responsible for mapping HTTP requests to Kafka records, sending records to
@@ -46,11 +44,8 @@ public class RequestHandler<K, V> implements Handler<HttpServerRequest> {
 
   @Override
   public void handle(final HttpServerRequest request) {
-    requestToRecordMapper.accept(request, consumer(request));
-  }
-
-  private Consumer<KafkaProducerRecord<K, V>> consumer(final HttpServerRequest request) {
-    return record -> {
+    requestToRecordMapper.apply(request).onComplete(result -> {
+      final var record = result.result();
       if (record == null) {
         request.response().setStatusCode(MAPPER_FAILED).end();
         return;
@@ -65,6 +60,7 @@ public class RequestHandler<K, V> implements Handler<HttpServerRequest> {
 
         request.response().setStatusCode(RECORD_PRODUCED).end();
       });
-    };
+
+    });
   }
 }

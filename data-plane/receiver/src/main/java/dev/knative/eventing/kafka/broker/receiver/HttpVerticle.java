@@ -1,4 +1,4 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;

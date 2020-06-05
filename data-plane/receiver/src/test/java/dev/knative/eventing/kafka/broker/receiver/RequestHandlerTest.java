@@ -1,4 +1,4 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.refEq;
@@ -7,6 +7,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.kafka.client.producer.KafkaProducer;
@@ -31,7 +32,7 @@ public class RequestHandlerTest {
     );
 
     final RequestToRecordMapper<Object, Object> mapper
-        = (request, optionalConsumer) -> optionalConsumer.accept(record);
+        = (request) -> Future.succeededFuture(record);
 
     final var producer = new ProducerDriver<>().producer(failedToSend);
 
@@ -51,7 +52,7 @@ public class RequestHandlerTest {
     final var producer = mock(KafkaProducer.class);
 
     final RequestToRecordMapper<Object, Object> mapper
-        = (request, optionalConsumer) -> optionalConsumer.accept(null);
+        = (request) -> Future.failedFuture("");
 
     final var request = mock(HttpServerRequest.class);
     final var response = mockResponse(request, RequestHandler.MAPPER_FAILED);

@@ -1,4 +1,4 @@
-package dev.knative.eventingkafkabroker.receiver;
+package dev.knative.eventing.kafka.broker.receiver;
 
 import java.util.function.Function;
 

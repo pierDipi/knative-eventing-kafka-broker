@@ -1,14 +1,14 @@
-package dev.knative.eventingkafkabroker.receiver.integration;
+package dev.knative.eventing.kafka.broker.receiver.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.FloatNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import dev.knative.eventingkafkabroker.receiver.CloudEventRequestToRecordMapper;
-import dev.knative.eventingkafkabroker.receiver.HttpVerticle;
-import dev.knative.eventingkafkabroker.receiver.ProducerDriver;
-import dev.knative.eventingkafkabroker.receiver.RequestHandler;
+import dev.knative.eventing.kafka.broker.receiver.ProducerDriver;
+import dev.knative.eventing.kafka.broker.receiver.CloudEventRequestToRecordMapper;
+import dev.knative.eventing.kafka.broker.receiver.HttpVerticle;
+import dev.knative.eventing.kafka.broker.receiver.RequestHandler;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.message.Message;
 import io.cloudevents.core.v1.CloudEventBuilder;
@@ -35,14 +35,18 @@ public class ReceiverVerticleTest {
   static final int TIMEOUT = 10;
   static final int PORT = 8080;
 
-  @Test
-  public void requestHandler(final Vertx vertx, final VertxTestContext testContext)
+  private void requestHandler(
+      final Collection<TestCase> testCases,
+      final Vertx vertx,
+      final VertxTestContext testContext)
       throws Throwable {
 
     final var httpClient = vertx.createHttpClient();
-    final var testCases = requestStream();
     final var countDown = new CountDownLatch(testCases.size());
-    final var flags = testContext.checkpoint(testCases.size() * 2);
+    final var flags = testContext.checkpoint(
+        // responses + record verification
+        testCases.size() * 2
+    );
 
     final var producerDriver = new ProducerDriver<String, CloudEvent>();
     final var producer = producerDriver.producer(false);
@@ -84,7 +88,14 @@ public class ReceiverVerticleTest {
     }));
   }
 
-  public static Collection<TestCase> requestStream() {
+  @Test
+  public void testValidInvalidEvents(final Vertx vertx, final VertxTestContext ctx)
+      throws Throwable {
+    final var testCases = validInvalidEvents();
+    requestHandler(testCases, vertx, ctx);
+  }
+
+  private static Collection<TestCase> validInvalidEvents() {
     return Arrays.asList(
         new TestCase(
             new RequestResponse(
