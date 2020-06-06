@@ -4,10 +4,16 @@ import static io.netty.handler.codec.http.HttpResponseStatus.ACCEPTED;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpResponseStatus.SERVICE_UNAVAILABLE;
 
+import io.vertx.core.Future;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.kafka.client.producer.KafkaProducer;
+import io.vertx.kafka.client.producer.KafkaProducerRecord;
+import io.vertx.kafka.client.producer.RecordMetadata;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * RequestHandler is responsible for mapping HTTP requests to Kafka records, sending records to
@@ -19,8 +25,10 @@ import java.util.Objects;
 public class RequestHandler<K, V> implements Handler<HttpServerRequest> {
 
   public static final int MAPPER_FAILED = BAD_REQUEST.code();
-  public static final int FAILED_TO_PRODUCE_STATUS_CODE = SERVICE_UNAVAILABLE.code();
+  public static final int FAILED_TO_PRODUCE = SERVICE_UNAVAILABLE.code();
   public static final int RECORD_PRODUCED = ACCEPTED.code();
+
+  private static final Logger logger = LoggerFactory.getLogger(RequestHandler.class);
 
   private final KafkaProducer<K, V> producer;
   private final RequestToRecordMapper<K, V> requestToRecordMapper;
@@ -44,23 +52,27 @@ public class RequestHandler<K, V> implements Handler<HttpServerRequest> {
 
   @Override
   public void handle(final HttpServerRequest request) {
-    requestToRecordMapper.apply(request).onComplete(result -> {
-      final var record = result.result();
-      if (record == null) {
-        request.response().setStatusCode(MAPPER_FAILED).end();
-        return;
-      }
+    requestToRecordMapper
+        .recordFromRequest(request)
+        .onSuccess(record -> send(record)
+            .onSuccess(ignore -> {
+              request.response().setStatusCode(RECORD_PRODUCED).end();
+              logger.debug("record produced - topic: {}", record.topic());
+            })
+            .onFailure(ignore -> {
+              request.response().setStatusCode(FAILED_TO_PRODUCE).end();
+              logger.error("failed to produce - topic: {}", record.topic());
+            })
+        )
+        .onFailure(cause -> {
+          request.response().setStatusCode(MAPPER_FAILED).end();
+          logger.warn("failed to create cloud event - path: {}", request.path());
+        });
+  }
 
-      producer.send(record, metadataResult -> {
-
-        if (metadataResult.failed()) {
-          request.response().setStatusCode(FAILED_TO_PRODUCE_STATUS_CODE).end();
-          return;
-        }
-
-        request.response().setStatusCode(RECORD_PRODUCED).end();
-      });
-
-    });
+  private Future<RecordMetadata> send(final KafkaProducerRecord<K, V> record) {
+    final Promise<RecordMetadata> promise = Promise.promise();
+    producer.send(record, promise);
+    return promise.future();
   }
 }

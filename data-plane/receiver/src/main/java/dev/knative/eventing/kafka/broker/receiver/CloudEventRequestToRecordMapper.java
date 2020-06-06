@@ -1,5 +1,7 @@
 package dev.knative.eventing.kafka.broker.receiver;
 
+import static java.lang.String.join;
+
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.message.Message;
 import io.cloudevents.http.vertx.VertxMessageFactory;
@@ -14,24 +16,28 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
   static final int PATH_TOKEN_NUMBER = 2;
   static final String PATH_DELIMITER = "/";
   static final String TOPIC_DELIMITER = "-";
+  public static final String TOPIC_PREFIX = "knative-";
 
   @Override
-  public Future<KafkaProducerRecord<String, CloudEvent>> apply(final HttpServerRequest request) {
+  public Future<KafkaProducerRecord<String, CloudEvent>> recordFromRequest(
+      final HttpServerRequest request) {
 
     return VertxMessageFactory.fromHttpServerRequest(request)
+        // TODO is this conversion really necessary?
+        //      can be used Message?
         .map(Message::toEvent)
-        .map(event -> {
+        .compose(event -> {
           if (event == null) {
-            return null;
+            return Future.failedFuture(new IllegalArgumentException("event cannot be null"));
           }
 
           final var topic = topic(request.path());
           if (topic == null) {
-            return null;
+            return Future.failedFuture(new IllegalArgumentException("unable to determine topic"));
           }
 
-          // TODO(pierDipi) set the correct producer record key
-          return KafkaProducerRecord.create(topic, "", event);
+          // TODO set the correct producer record key
+          return Future.succeededFuture(KafkaProducerRecord.create(topic, "", event));
         });
   }
 
@@ -39,7 +45,8 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
   static String topic(final String path) {
     // The expected request path is of the form `/<broker-namespace>/<broker-name>`, that maps to
     // topic `<broker-namespace>-<broker-name>`, so, validate path and return topic name.
-    // In case such topic doesn't exists the following apply:
+    // In case such topic doesn't exists the following reasons apply:
+    //  - The Broker doesn't exist
     //  - The Broker is not Ready
 
     final var tokenizer = new StringTokenizer(path, PATH_DELIMITER, false);
@@ -47,7 +54,7 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
       return null;
     }
 
-    return String.join(TOPIC_DELIMITER, tokenizer.nextToken(), tokenizer.nextToken());
+    return TOPIC_PREFIX + join(TOPIC_DELIMITER, tokenizer.nextToken(), tokenizer.nextToken());
   }
 
 }

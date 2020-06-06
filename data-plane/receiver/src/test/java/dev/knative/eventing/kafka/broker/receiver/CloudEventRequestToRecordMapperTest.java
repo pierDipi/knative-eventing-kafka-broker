@@ -1,7 +1,8 @@
 package dev.knative.eventing.kafka.broker.receiver;
 
+import static dev.knative.eventing.kafka.broker.receiver.CloudEventRequestToRecordMapper.TOPIC_PREFIX;
 import static dev.knative.eventing.kafka.broker.receiver.CloudEventRequestToRecordMapper.topic;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,14 @@ public class CloudEventRequestToRecordMapperTest {
 
   @Test
   public void shouldReturnTopicNameIfCorrectPath() {
-    assertNotNull(topic("/broker-namespace/broker-name"));
-    assertNotNull(topic("/broker-namespace/broker-name/"));
+    assertEquals(
+        TOPIC_PREFIX + "broker-namespace-broker-name",
+        topic("/broker-namespace/broker-name")
+    );
+    assertEquals(
+        TOPIC_PREFIX + "broker-namespace-broker-name",
+        topic("/broker-namespace/broker-name/")
+    );
   }
 
   @Test

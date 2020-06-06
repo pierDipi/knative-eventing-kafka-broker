@@ -1,16 +1,18 @@
 package dev.knative.eventing.kafka.broker.receiver;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.Future;
+import io.vertx.core.Handler;
 import io.vertx.core.http.HttpServerRequest;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.kafka.client.producer.KafkaProducer;
+import io.vertx.kafka.client.producer.RecordMetadata;
 import io.vertx.kafka.client.producer.impl.KafkaProducerRecordImpl;
 import org.junit.jupiter.api.Test;
 
@@ -23,18 +25,32 @@ public class RequestHandlerTest {
 
   @Test
   public void shouldSendRecordAndTerminateRequestWithFailedToProduce() {
-    shouldSendRecord(true, RequestHandler.FAILED_TO_PRODUCE_STATUS_CODE);
+    shouldSendRecord(true, RequestHandler.FAILED_TO_PRODUCE);
   }
 
+  @SuppressWarnings("unchecked")
   private static void shouldSendRecord(boolean failedToSend, int statusCode) {
-    final var record = new KafkaProducerRecordImpl<Object, Object>(
+    final var record = new KafkaProducerRecordImpl<>(
         "topic", "key", "value", 10
     );
 
-    final RequestToRecordMapper<Object, Object> mapper
-        = (request) -> Future.succeededFuture(record);
+    final RequestToRecordMapper<String, String> mapper
+        = request -> Future.succeededFuture(record);
 
-    final var producer = new ProducerDriver<>().producer(failedToSend);
+    final KafkaProducer<String, String> producer = mock(KafkaProducer.class);
+
+    when(producer.send(any(), any())).thenAnswer(invocationOnMock -> {
+
+      final var handler = (Handler<AsyncResult<RecordMetadata>>) invocationOnMock
+          .getArgument(1, Handler.class);
+      final var result = mock(AsyncResult.class);
+      when(result.failed()).thenReturn(failedToSend);
+      when(result.succeeded()).thenReturn(!failedToSend);
+
+      handler.handle(result);
+
+      return producer;
+    });
 
     final var request = mock(HttpServerRequest.class);
     final var response = mockResponse(request, statusCode);
@@ -42,7 +58,6 @@ public class RequestHandlerTest {
     final var handler = new RequestHandler<>(producer, mapper);
     handler.handle(request);
 
-    verify(producer, times(1)).send(refEq(record), any());
     verifySetStatusCodeAndTerminateResponse(statusCode, response);
   }
 
