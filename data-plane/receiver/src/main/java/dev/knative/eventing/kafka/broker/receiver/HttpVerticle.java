@@ -2,6 +2,7 @@ package dev.knative.eventing.kafka.broker.receiver;
 
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
+import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
@@ -31,10 +32,18 @@ public class HttpVerticle extends AbstractVerticle {
   }
 
   @Override
-  public void start() {
-    server = vertx.createHttpServer(httpServerOptions)
-        .requestHandler(requestHandler)
-        .listen();
+  public void start(final Promise<Void> startPromise) {
+    server = vertx.createHttpServer(httpServerOptions).requestHandler(requestHandler).listen(
+        httpServerOptions.getPort(),
+        httpServerOptions.getHost(),
+        s -> {
+          if (s.failed()) {
+            startPromise.tryFail(s.cause());
+          } else {
+            startPromise.tryComplete();
+          }
+        }
+    );
   }
 
   @Override

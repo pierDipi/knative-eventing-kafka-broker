@@ -67,6 +67,7 @@ public class ReceiverVerticleTest {
 
     final var httpServerOptions = new HttpServerOptions();
     httpServerOptions.setPort(PORT);
+    httpServerOptions.setHost("localhost");
     final var verticle = new HttpVerticle(httpServerOptions, handler);
     vertx.deployVerticle(verticle, testContext.succeeding(ar -> testContext.completeNow()));
   }

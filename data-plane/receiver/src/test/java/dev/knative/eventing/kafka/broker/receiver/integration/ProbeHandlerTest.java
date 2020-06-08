@@ -13,15 +13,14 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(VertxExtension.class)
 public class ProbeHandlerTest {
 
-  private static final int TIMEOUT = 5000;
-  private static final int PORT = 8989;
+  private static final int PORT = 43999;
 
   private static final String LIVENESS_PATH = "/healthz";
   private static final String READINESS_PATH = "/readyz";
@@ -30,10 +29,11 @@ public class ProbeHandlerTest {
 
   private static HttpClient httpClient;
 
-  @BeforeAll
+  @BeforeEach
   public static void setUp(final Vertx vertx, final VertxTestContext context) {
     final var httpServerOptions = new HttpServerOptions();
     httpServerOptions.setPort(PORT);
+    httpServerOptions.setHost("localhost");
     final var verticle = new HttpVerticle(httpServerOptions, new SimpleProbeHandlerDecorator(
         LIVENESS_PATH,
         READINESS_PATH,
@@ -50,29 +50,26 @@ public class ProbeHandlerTest {
 
   @Test
   public void testReadinessCheck(final VertxTestContext context) {
-    doRequest(READINESS_PATH)
-        .onSuccess(statusCode -> context.verify(() -> {
-          assertThat(statusCode).isEqualTo(OK);
-          context.completeNow();
-        }))
-        .onFailure(context::failNow);
+    mustReceiveStatusCodeOnPath(context, OK, READINESS_PATH);
   }
 
   @Test
   public void testLivenessCheck(final VertxTestContext context) {
-    doRequest(LIVENESS_PATH)
-        .onSuccess(statusCode -> context.verify(() -> {
-          assertThat(statusCode).isEqualTo(OK);
-          context.completeNow();
-        }))
-        .onFailure(context::failNow);
+    mustReceiveStatusCodeOnPath(context, OK, LIVENESS_PATH);
   }
 
   @Test
   public void shouldForwardToNextHandler(final VertxTestContext context) {
-    doRequest("/does-not-exists-42")
+    mustReceiveStatusCodeOnPath(context, NEXT_HANDLER_STATUS_CODE, "/does-not-exists-42");
+  }
+
+  private static void mustReceiveStatusCodeOnPath(
+      final VertxTestContext context,
+      final int expectedStatusCode,
+      final String path) {
+    doRequest(path)
         .onSuccess(statusCode -> context.verify(() -> {
-          assertThat(statusCode).isEqualTo(NEXT_HANDLER_STATUS_CODE);
+          assertThat(statusCode).isEqualTo(expectedStatusCode);
           context.completeNow();
         }))
         .onFailure(context::failNow);
@@ -83,7 +80,6 @@ public class ProbeHandlerTest {
 
     httpClient.get(PORT, "localhost", path)
         .exceptionHandler(promise::tryFail)
-        .setTimeout(TIMEOUT)
         .handler(response -> promise.tryComplete(response.statusCode()))
         .end();
 
