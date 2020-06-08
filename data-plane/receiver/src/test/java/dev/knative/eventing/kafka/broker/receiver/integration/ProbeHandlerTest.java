@@ -13,8 +13,7 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -30,24 +29,18 @@ public class ProbeHandlerTest {
   private static final int NEXT_HANDLER_STATUS_CODE = HttpResponseStatus.SERVICE_UNAVAILABLE.code();
 
   private static HttpClient httpClient;
-  private HttpVerticle verticle;
 
-  @BeforeEach
-  public void setUp(final Vertx vertx, final VertxTestContext context) {
+  @BeforeAll
+  public static void setUp(final Vertx vertx, final VertxTestContext context) {
     final var httpServerOptions = new HttpServerOptions();
     httpServerOptions.setPort(PORT);
-    verticle = new HttpVerticle(httpServerOptions, new SimpleProbeHandlerDecorator(
+    final var verticle = new HttpVerticle(httpServerOptions, new SimpleProbeHandlerDecorator(
         LIVENESS_PATH,
         READINESS_PATH,
         r -> r.response().setStatusCode(NEXT_HANDLER_STATUS_CODE).end()
     ));
     httpClient = vertx.createHttpClient();
-    vertx.deployVerticle(verticle, context.completing());
-  }
-
-  @AfterEach
-  void tearDown(final Vertx vertx, final VertxTestContext context) {
-    vertx.undeploy(verticle.deploymentID(), context.completing());
+    vertx.deployVerticle(verticle, context.succeeding(ar -> context.completeNow()));
   }
 
   @AfterAll
@@ -56,7 +49,7 @@ public class ProbeHandlerTest {
   }
 
   @Test
-  public void testReadinessCheck(final Vertx vertx, final VertxTestContext context) {
+  public void testReadinessCheck(final VertxTestContext context) {
     doRequest(READINESS_PATH)
         .onSuccess(statusCode -> context.verify(() -> {
           assertThat(statusCode).isEqualTo(OK);
@@ -66,7 +59,7 @@ public class ProbeHandlerTest {
   }
 
   @Test
-  public void testLivenessCheck(final Vertx vertx, final VertxTestContext context) {
+  public void testLivenessCheck(final VertxTestContext context) {
     doRequest(LIVENESS_PATH)
         .onSuccess(statusCode -> context.verify(() -> {
           assertThat(statusCode).isEqualTo(OK);
@@ -76,7 +69,7 @@ public class ProbeHandlerTest {
   }
 
   @Test
-  public void shouldForwardToNextHandler(final Vertx vertx, final VertxTestContext context) {
+  public void shouldForwardToNextHandler(final VertxTestContext context) {
     doRequest("/does-not-exists-42")
         .onSuccess(statusCode -> context.verify(() -> {
           assertThat(statusCode).isEqualTo(NEXT_HANDLER_STATUS_CODE);

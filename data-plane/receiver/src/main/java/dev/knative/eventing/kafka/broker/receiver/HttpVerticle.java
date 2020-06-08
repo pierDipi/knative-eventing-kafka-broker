@@ -10,7 +10,7 @@ import java.util.Objects;
 public class HttpVerticle extends AbstractVerticle {
 
   private final HttpServerOptions httpServerOptions;
-  private Handler<HttpServerRequest> requestHandler;
+  private final Handler<HttpServerRequest> requestHandler;
   private HttpServer server;
 
   /**
