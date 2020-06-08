@@ -1,6 +1,7 @@
 FROM maven:3.6.3-openjdk-14 as builder
 
-COPY data-plane/ /app
+WORKDIR /app
 
-RUN cd /app && \
-  mvn clean verify -B
+COPY . .
+
+RUN mvn clean verify -B

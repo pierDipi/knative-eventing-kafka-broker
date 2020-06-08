@@ -14,4 +14,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Build Docker image
-        run: docker build --file data-plane/build/test/Dockerfile --tag tests:$(date +%s) .
+        run: |
+          ./data-plane/build/ci/run_tests.sh

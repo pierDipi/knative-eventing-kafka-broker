@@ -53,8 +53,9 @@ public class ReceiverVerticleTest {
 
   private static HttpClient httpClient;
 
-  private MockProducer<String, CloudEvent> producer;
+  private MockProducer<String, CloudEvent> mockProducer;
   private AbstractVerticle verticle;
+  private KafkaProducer<String, CloudEvent> producer;
 
   @BeforeAll
   public static void setUp(final Vertx vertx) {
@@ -68,8 +69,8 @@ public class ReceiverVerticleTest {
         new StringSerializer(),
         new CloudEventSerializer()
     );
-    this.producer = mockProducer;
-    final var producer = KafkaProducer.create(vertx, mockProducer);
+    this.mockProducer = mockProducer;
+    this.producer = KafkaProducer.create(vertx, mockProducer);
     final var handler = new RequestHandler<>(producer, new CloudEventRequestToRecordMapper());
 
     final var httpServerOptions = new HttpServerOptions();
@@ -104,7 +105,7 @@ public class ReceiverVerticleTest {
       final VertxTestContext context,
       final Collection<TestCase> testCases) throws InterruptedException {
 
-    final var checkpoints = context.checkpoint(testCases.size());
+    final var checkpoints = context.checkpoint(testCases.size() + 1);
     final var countDown = new CountDownLatch(testCases.size());
 
     testCases.stream().map(tc -> tc.requestResponse).forEach(rr -> {
@@ -123,13 +124,15 @@ public class ReceiverVerticleTest {
     });
 
     countDown.await(TIMEOUT, TimeUnit.SECONDS);
+    // vertx Kafka producer is async, so flush it
+    producer.flush(ignored -> checkpoints.flag());
 
     final var expectedProducedRecord = testCases.stream()
         .filter(tc -> tc.record != null)
         .map(tc -> tc.record)
         .collect(Collectors.toList());
 
-    assertThat(producer.history())
+    assertThat(mockProducer.history())
         .containsExactlyInAnyOrderElementsOf(expectedProducedRecord);
   }
 
