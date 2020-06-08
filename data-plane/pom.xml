@@ -4,7 +4,7 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>dev.knative.eventingkafkabroker</groupId>
+  <groupId>dev.knative.eventing.kafka.broker</groupId>
   <artifactId>data-plane</artifactId>
   <packaging>pom</packaging>
   <version>1.0-SNAPSHOT</version>
@@ -16,10 +16,15 @@
     <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
     <maven.surefire.plugin.version>3.0.0-M4</maven.surefire.plugin.version>
     <junit.jupiter.version>5.6.2</junit.jupiter.version>
+    <junit.platform.version>1.6.2</junit.platform.version>
     <mokito.junit.jupiter.version>3.3.3</mokito.junit.jupiter.version>
     <maven.shade.plugin.version>3.2.4</maven.shade.plugin.version>
     <maven.checkstyle.plugin.version>3.1.1</maven.checkstyle.plugin.version>
+    <jacoco.plugin.version>0.8.5</jacoco.plugin.version>
+    <!-- vertx version should be aligned with cloud events SDK -->
     <vertx.version>3.9.1</vertx.version>
+    <cloudevents.sdk.version>2.0.0-SNAPSHOT</cloudevents.sdk.version>
+    <assertj.version>3.16.1</assertj.version>
   </properties>
 
   <dependencyManagement>
@@ -55,6 +60,9 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven.surefire.plugin.version}</version>
+        <configuration>
+          <argLine>${argLine}</argLine>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -81,13 +89,110 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.plugin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+    </plugins>
+  </reporting>
+
+  <repositories>
+    <repository>
+      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+      <id>sonatype</id>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
+
   <dependencies>
+
+    <dependency>
+      <groupId>io.cloudevents</groupId>
+      <artifactId>cloudevents-http-vertx</artifactId>
+      <version>${cloudevents.sdk.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.cloudevents</groupId>
+      <artifactId>cloudevents-kafka</artifactId>
+      <version>${cloudevents.sdk.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.cloudevents</groupId>
+      <artifactId>cloudevents-json-jackson</artifactId>
+      <version>${cloudevents.sdk.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-kafka-client</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-junit5</artifactId>
+      <version>${vertx.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- TODO(pierDipi) structured logging  -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.30</version>
+    </dependency>
+
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <version>${junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!--
+    TODO without junit-jupiter-engine maven-surefire-plugin fails
+        org.apache.maven.surefire.booter.SurefireBooterForkException: There was an error in the
+        forked processorg/junit/platform/engine/EngineDiscoveryListener
+        (probably due to versions)
+        https://github.com/pierDipi/knative-eventing-kafka-broker/pull/3/files#r435924951
+    -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-engine</artifactId>
       <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
@@ -95,6 +200,13 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
       <version>${mokito.junit.jupiter.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

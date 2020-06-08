@@ -7,12 +7,15 @@ on:
     branches: [ master ]
 
 jobs:
-  java_tests:
+  k8s_tests_data_plane:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Build Docker image
+      - name: Install tools
         run: |
-          ./data-plane/build/ci/run_tests.sh
+          ./data-plane/build/ci/install_tools.sh
+      - name: Run k8s with KinD
+        run: |
+          ./data-plane/build/ci/install_with_kind.sh
