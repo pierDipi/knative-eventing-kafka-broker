@@ -1,7 +1,6 @@
 package dev.knative.eventing.kafka.broker.receiver;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
@@ -31,10 +30,10 @@ class EnvTest {
         }
     );
 
-    assertEquals(Integer.parseInt(PORT), env.getIngressPort());
-    assertEquals(LIVENESS_PATH, env.getLivenessProbePath());
-    assertEquals(READINESS_PATH, env.getReadinessProbePath());
-    assertEquals(PRODUCER_CONFIG_PATH, env.getProducerConfigFilePath());
-    assertFalse(env.toString().contains("@"));
+    assertThat(env.getIngressPort()).isEqualTo(Integer.parseInt(PORT));
+    assertThat(env.getLivenessProbePath()).isEqualTo(LIVENESS_PATH);
+    assertThat(env.getReadinessProbePath()).isEqualTo(READINESS_PATH);
+    assertThat(env.getProducerConfigFilePath()).isEqualTo(PRODUCER_CONFIG_PATH);
+    assertThat(env.toString()).doesNotContain("@");
   }
 }

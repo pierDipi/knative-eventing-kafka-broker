@@ -1,8 +1,7 @@
 package dev.knative.eventing.kafka.broker.receiver.integration;
 
 import static dev.knative.eventing.kafka.broker.receiver.CloudEventRequestToRecordMapper.TOPIC_PREFIX;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.FloatNode;
@@ -29,7 +28,7 @@ import io.vertx.kafka.client.producer.KafkaProducer;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Objects;
+import java.util.Collections;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -43,6 +42,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 @ExtendWith(VertxExtension.class)
 public class ReceiverVerticleTest {
@@ -89,24 +90,31 @@ public class ReceiverVerticleTest {
 
   @Test
   public void testValidNonValidEvents(final VertxTestContext context) throws Throwable {
-    test(context, validNonValidEvents());
+    testAll(context, validNonValidEvents());
   }
 
-  private void test(
+  @ParameterizedTest
+  @MethodSource({"validNonValidEvents"})
+  public void test(final TestCase testCase, final VertxTestContext context)
+      throws InterruptedException {
+    testAll(context, Collections.singleton(testCase));
+  }
+
+  private void testAll(
       final VertxTestContext context,
       final Collection<TestCase> testCases) throws InterruptedException {
 
-    final var checkpoints = context.checkpoint(testCases.size() * 2);
+    final var checkpoints = context.checkpoint(testCases.size());
     final var countDown = new CountDownLatch(testCases.size());
 
-    testCases.parallelStream().map(tc -> tc.requestResponse).forEach(rr -> {
+    testCases.stream().map(tc -> tc.requestResponse).forEach(rr -> {
       doRequest(rr.requestFinalizer, rr.path)
           .onSuccess(response -> context.verify(() -> {
-                assertEquals(
-                    rr.responseStatusCode,
-                    response.statusCode(),
-                    () -> "failed for path: " + rr.path
-                );
+
+                assertThat(response.statusCode())
+                    .as("verify path: " + rr.path)
+                    .isEqualTo(rr.responseStatusCode);
+
                 checkpoints.flag();
                 countDown.countDown();
               }
@@ -117,27 +125,12 @@ public class ReceiverVerticleTest {
     countDown.await(TIMEOUT, TimeUnit.SECONDS);
 
     final var expectedProducedRecord = testCases.stream()
+        .filter(tc -> tc.record != null)
         .map(tc -> tc.record)
         .collect(Collectors.toList());
 
-    context.verify(() -> assertEquals(
-        expectedProducedRecord.stream().filter(Objects::nonNull).count(),
-        producer.history().size()
-    ));
-
-    expectedProducedRecord.forEach(record -> {
-      if (record != null) {
-        context.verify(() -> mustHave(record));
-      }
-      checkpoints.flag();
-    });
-  }
-
-  private void mustHave(ProducerRecord<String, CloudEvent> record) {
-    final var records = producer.history();
-    if (!records.contains(record)) {
-      fail(record + " not found\nrecords registered" + Arrays.deepToString(records.toArray()));
-    }
+    assertThat(producer.history())
+        .containsExactlyInAnyOrderElementsOf(expectedProducedRecord);
   }
 
   private static Future<HttpClientResponse> doRequest(

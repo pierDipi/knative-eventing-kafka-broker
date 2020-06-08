@@ -1,6 +1,6 @@
 package dev.knative.eventing.kafka.broker.receiver.integration;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.knative.eventing.kafka.broker.receiver.HttpVerticle;
 import dev.knative.eventing.kafka.broker.receiver.SimpleProbeHandlerDecorator;
@@ -59,7 +59,7 @@ public class ProbeHandlerTest {
   public void testReadinessCheck(final Vertx vertx, final VertxTestContext context) {
     doRequest(READINESS_PATH)
         .onSuccess(statusCode -> context.verify(() -> {
-          assertEquals(OK, statusCode);
+          assertThat(statusCode).isEqualTo(OK);
           context.completeNow();
         }))
         .onFailure(context::failNow);
@@ -69,7 +69,7 @@ public class ProbeHandlerTest {
   public void testLivenessCheck(final Vertx vertx, final VertxTestContext context) {
     doRequest(LIVENESS_PATH)
         .onSuccess(statusCode -> context.verify(() -> {
-          assertEquals(OK, statusCode);
+          assertThat(statusCode).isEqualTo(OK);
           context.completeNow();
         }))
         .onFailure(context::failNow);
@@ -79,7 +79,7 @@ public class ProbeHandlerTest {
   public void shouldForwardToNextHandler(final Vertx vertx, final VertxTestContext context) {
     doRequest("/does-not-exists-42")
         .onSuccess(statusCode -> context.verify(() -> {
-          assertEquals(NEXT_HANDLER_STATUS_CODE, statusCode);
+          assertThat(statusCode).isEqualTo(NEXT_HANDLER_STATUS_CODE);
           context.completeNow();
         }))
         .onFailure(context::failNow);
