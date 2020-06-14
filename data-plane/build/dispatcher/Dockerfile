@@ -22,4 +22,4 @@ RUN mkdir /tmp/vertx-cache && \
       chown -R appuser:appuser /app
 USER appuser
 WORKDIR /app
-COPY --from=builder /app/receiver/target/receiver-1.0-SNAPSHOT.jar /app/app.jar
+COPY --from=builder /app/dispatcher/target/dispatcher-1.0-SNAPSHOT.jar /app/app.jar

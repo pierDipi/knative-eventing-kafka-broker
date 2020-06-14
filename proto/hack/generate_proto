@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+# TODO use a reproducible technique across environments
+protoc --java_out=./../data-plane/core/src/main/java/ ./def/*

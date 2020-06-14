@@ -6,4 +6,5 @@
 
 <suppressions>
   <suppress checks="AbbreviationAsWordInName" files="\.java"/>
+  <suppress checks="MissingJavadocMethod" files="CoreObjects.java"/>
 </suppressions>

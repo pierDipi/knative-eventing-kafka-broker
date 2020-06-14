@@ -44,7 +44,7 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
   @Nullable
   static String topic(final String path) {
     // The expected request path is of the form `/<broker-namespace>/<broker-name>`, that maps to
-    // topic `<broker-namespace>-<broker-name>`, so, validate path and return topic name.
+    // topic `TOPIC_PREFIX<broker-namespace>-<broker-name>`, so validate path and return topic name.
     // In case such topic doesn't exists the following reasons apply:
     //  - The Broker doesn't exist
     //  - The Broker is not Ready
