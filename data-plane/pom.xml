@@ -25,6 +25,7 @@
     <vertx.version>3.9.1</vertx.version>
     <cloudevents.sdk.version>2.0.0-SNAPSHOT</cloudevents.sdk.version>
     <assertj.version>3.16.1</assertj.version>
+    <artifact.version>1.0-SNAPSHOT</artifact.version>
   </properties>
 
   <dependencyManagement>
