@@ -10,9 +10,8 @@ import dev.knative.eventing.kafka.broker.receiver.CloudEventRequestToRecordMappe
 import dev.knative.eventing.kafka.broker.receiver.HttpVerticle;
 import dev.knative.eventing.kafka.broker.receiver.RequestHandler;
 import io.cloudevents.CloudEvent;
-import io.cloudevents.core.message.Message;
 import io.cloudevents.core.v1.CloudEventBuilder;
-import io.cloudevents.http.vertx.VertxHttpClientRequestMessageVisitor;
+import io.cloudevents.http.vertx.VertxHttpClientRequestMessageWriter;
 import io.cloudevents.kafka.CloudEventSerializer;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
@@ -271,10 +270,7 @@ public class ReceiverVerticleTest {
   }
 
   private static Consumer<HttpClientRequest> ceRequestFinalizer(final CloudEvent event) {
-    return request -> Message.writeBinaryEvent(
-        event,
-        VertxHttpClientRequestMessageVisitor.create(request)
-    );
+    return request -> VertxHttpClientRequestMessageWriter.create(request).writeBinary(event);
   }
 
   public static final class TestCase {

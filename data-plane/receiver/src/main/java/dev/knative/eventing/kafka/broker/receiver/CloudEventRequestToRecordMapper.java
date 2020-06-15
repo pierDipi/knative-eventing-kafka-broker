@@ -3,8 +3,8 @@ package dev.knative.eventing.kafka.broker.receiver;
 import static java.lang.String.join;
 
 import io.cloudevents.CloudEvent;
-import io.cloudevents.core.message.Message;
-import io.cloudevents.http.vertx.VertxMessageFactory;
+import io.cloudevents.core.message.MessageReader;
+import io.cloudevents.http.vertx.VertxMessageReaderFactory;
 import io.cloudevents.lang.Nullable;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerRequest;
@@ -22,10 +22,10 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
   public Future<KafkaProducerRecord<String, CloudEvent>> recordFromRequest(
       final HttpServerRequest request) {
 
-    return VertxMessageFactory.fromHttpServerRequest(request)
+    return VertxMessageReaderFactory.fromHttpServerRequest(request)
         // TODO is this conversion really necessary?
         //      can be used Message?
-        .map(Message::toEvent)
+        .map(MessageReader::toEvent)
         .compose(event -> {
           if (event == null) {
             return Future.failedFuture(new IllegalArgumentException("event cannot be null"));
