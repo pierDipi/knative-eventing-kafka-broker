@@ -1,0 +1,21 @@
+name: Data Plane
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  integration_tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install tools
+        run: |
+          ./data-plane/build/ci/install_tools.sh
+      - name: Run k8s with KinD
+        run: |
+          ./data-plane/build/ci/install_with_kind.sh
