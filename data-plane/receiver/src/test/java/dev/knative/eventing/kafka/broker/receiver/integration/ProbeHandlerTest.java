@@ -30,7 +30,7 @@ public class ProbeHandlerTest {
   private static HttpClient httpClient;
 
   @BeforeEach
-  public static void setUp(final Vertx vertx, final VertxTestContext context) {
+  public void setUp(final Vertx vertx, final VertxTestContext context) {
     final var httpServerOptions = new HttpServerOptions();
     httpServerOptions.setPort(PORT);
     httpServerOptions.setHost("localhost");

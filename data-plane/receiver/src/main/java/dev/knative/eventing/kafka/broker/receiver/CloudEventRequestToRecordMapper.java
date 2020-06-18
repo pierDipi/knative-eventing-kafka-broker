@@ -4,7 +4,7 @@ import static java.lang.String.join;
 
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.message.MessageReader;
-import io.cloudevents.http.vertx.VertxMessageReaderFactory;
+import io.cloudevents.http.vertx.VertxMessageFactory;
 import io.cloudevents.lang.Nullable;
 import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerRequest;
@@ -22,7 +22,7 @@ public class CloudEventRequestToRecordMapper implements RequestToRecordMapper<St
   public Future<KafkaProducerRecord<String, CloudEvent>> recordFromRequest(
       final HttpServerRequest request) {
 
-    return VertxMessageReaderFactory.fromHttpServerRequest(request)
+    return VertxMessageFactory.createReader(request)
         // TODO is this conversion really necessary?
         //      can be used Message?
         .map(MessageReader::toEvent)
