@@ -1,7 +1,7 @@
 syntax = 'proto3';
 
-option go_package = "knative.dev/eventing-kafka-broker/pkg/config";
-option java_package = "dev.knative.eventing.kafka.broker.core.proto";
+option go_package = "knative.dev/eventing-kafka-broker/pkg/core/config";
+option java_package = "dev.knative.eventing.kafka.broker.core.config";
 option java_outer_classname = "BrokersConfig";
 
 message Trigger {

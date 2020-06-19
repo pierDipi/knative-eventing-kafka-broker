@@ -45,8 +45,6 @@ spec:
               value: "100"
             - name: TRIGGERS_INITIAL_CAPACITY
               value: "20"
-            - name: RETRY_DELAY_AFTER_FAILED_VERTICLE_DEPLOY_MS
-              value: "3000"
           command:
             - "java"
           # TODO add JVM arguments

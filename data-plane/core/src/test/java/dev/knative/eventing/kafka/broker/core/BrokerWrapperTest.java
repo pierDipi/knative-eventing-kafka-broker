@@ -2,11 +2,12 @@ package dev.knative.eventing.kafka.broker.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Broker;
-import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Map.Entry;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Broker;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class BrokerWrapperTest {
 
@@ -40,13 +41,29 @@ public class BrokerWrapperTest {
     assertThat(broker.topic()).isEqualTo(topic);
   }
 
-  /**
-   * @return a stream of pairs that are semantically different.
-   * @see dev.knative.eventing.kafka.broker.core.BrokerTest#testTriggerDifference(Entry)
-   */
-  public static Stream<Entry<dev.knative.eventing.kafka.broker.core.Broker, dev.knative.eventing.kafka.broker.core.Broker>> differentTriggersProvider() {
+  @ParameterizedTest
+  @MethodSource(value = {"equalTriggersProvider"})
+  public void testTriggerEquality(
+      final dev.knative.eventing.kafka.broker.core.Broker b1,
+      final dev.knative.eventing.kafka.broker.core.Broker b2) {
+   
+    assertThat(b1).isEqualTo(b2);
+    assertThat(b1.hashCode()).isEqualTo(b2.hashCode());
+  }
+
+  @ParameterizedTest
+  @MethodSource(value = {"differentTriggersProvider"})
+  public void testTriggerDifference(
+      final dev.knative.eventing.kafka.broker.core.Broker b1,
+      final dev.knative.eventing.kafka.broker.core.Broker b2) {
+
+    assertThat(b1).isNotEqualTo(b2);
+    assertThat(b1.hashCode()).isNotEqualTo(b2.hashCode());
+  }
+
+  public static Stream<Arguments> differentTriggersProvider() {
     return Stream.of(
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new BrokerWrapper(
                 Broker.newBuilder()
                     .setId("1234-id")
@@ -56,7 +73,7 @@ public class BrokerWrapperTest {
                 Broker.newBuilder().build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new BrokerWrapper(
                 Broker.newBuilder()
                     .setTopic("kantive-topic")
@@ -66,7 +83,7 @@ public class BrokerWrapperTest {
                 Broker.newBuilder().build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new BrokerWrapper(
                 Broker.newBuilder()
                     .setDeadLetterSink("http:/localhost:9090")
@@ -79,13 +96,9 @@ public class BrokerWrapperTest {
     );
   }
 
-  /**
-   * @return a stream of pairs that are semantically equivalent.
-   * @see dev.knative.eventing.kafka.broker.core.BrokerTest#testTriggerDifference(Entry)
-   */
-  public static Stream<Entry<dev.knative.eventing.kafka.broker.core.Broker, dev.knative.eventing.kafka.broker.core.Broker>> equalTriggersProvider() {
+  public static Stream<Arguments> equalTriggersProvider() {
     return Stream.of(
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new BrokerWrapper(
                 Broker.newBuilder()
                     .build()
@@ -94,7 +107,7 @@ public class BrokerWrapperTest {
                 Broker.newBuilder().build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new BrokerWrapper(
                 Broker.newBuilder()
                     .setTopic("knative-topic")

@@ -11,10 +11,11 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class UnorderedConsumerOffsetManager<K, V> implements ConsumerOffsetManager<K, V> {
+public final class UnorderedConsumerRecordOffsetStrategy<K, V> implements
+    ConsumerRecordOffsetStrategy<K, V> {
 
   private static final Logger logger = LoggerFactory
-      .getLogger(UnorderedConsumerOffsetManager.class);
+      .getLogger(UnorderedConsumerRecordOffsetStrategy.class);
 
   private static final String RECORD_LOG_SUFFIX_FORMAT = " - topic {} partition {} offset {}";
 
@@ -25,7 +26,7 @@ public final class UnorderedConsumerOffsetManager<K, V> implements ConsumerOffse
    *
    * @param consumer Kafka consumer.
    */
-  public UnorderedConsumerOffsetManager(final KafkaConsumer<K, V> consumer) {
+  public UnorderedConsumerRecordOffsetStrategy(final KafkaConsumer<K, V> consumer) {
     Objects.requireNonNull(consumer, "provide consumer");
 
     this.consumer = consumer;

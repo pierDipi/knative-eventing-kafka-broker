@@ -3,7 +3,7 @@ package dev.knative.eventing.kafka.broker.dispatcher.http;
 import dev.knative.eventing.kafka.broker.dispatcher.SinkResponseHandler;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.message.MessageReader;
-import io.cloudevents.http.vertx.VertxMessageReaderFactory;
+import io.cloudevents.http.vertx.VertxMessageFactory;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpClientResponse;
@@ -42,7 +42,7 @@ public final class HttpSinkResponseHandler implements SinkResponseHandler<HttpCl
    */
   @Override
   public Future<Object> handle(final HttpClientResponse response) {
-    return VertxMessageReaderFactory.fromHttpClientResponse(response)
+    return VertxMessageFactory.createReader(response)
         // TODO is this conversion really necessary?
         //      can be used Message?
         .map(MessageReader::toEvent)

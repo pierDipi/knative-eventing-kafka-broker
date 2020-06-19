@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 import com.google.protobuf.util.JsonFormat;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Brokers;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Brokers;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;

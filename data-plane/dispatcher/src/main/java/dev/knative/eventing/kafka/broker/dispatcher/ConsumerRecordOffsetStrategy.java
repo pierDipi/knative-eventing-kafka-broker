@@ -2,7 +2,7 @@ package dev.knative.eventing.kafka.broker.dispatcher;
 
 import io.vertx.kafka.client.consumer.KafkaConsumerRecord;
 
-public interface ConsumerOffsetManager<K, V> {
+public interface ConsumerRecordOffsetStrategy<K, V> {
 
   /**
    * The given record has been received.

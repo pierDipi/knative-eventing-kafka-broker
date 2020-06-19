@@ -22,8 +22,8 @@ public class ConsumerRecordHandlerTest {
   @SuppressWarnings("unchecked")
   public void shouldNotSendToSubscriberNorToDLQIfValueDoesntMatch() {
 
-    final ConsumerOffsetManager<Object, Object> receiver
-        = (ConsumerOffsetManager<Object, Object>) mock(ConsumerOffsetManager.class);
+    final ConsumerRecordOffsetStrategy<Object, Object> receiver
+        = (ConsumerRecordOffsetStrategy<Object, Object>) mock(ConsumerRecordOffsetStrategy.class);
 
     final var consumerRecordHandler = new ConsumerRecordHandler<>(
         record -> fail("subscriber send called"),
@@ -48,8 +48,8 @@ public class ConsumerRecordHandlerTest {
   public void shouldSendOnlyToSubscriberIfValueMatches() {
 
     final var sendCalled = new AtomicBoolean(false);
-    final ConsumerOffsetManager<Object, Object> receiver
-        = (ConsumerOffsetManager<Object, Object>) mock(ConsumerOffsetManager.class);
+    final ConsumerRecordOffsetStrategy<Object, Object> receiver
+        = (ConsumerRecordOffsetStrategy<Object, Object>) mock(ConsumerRecordOffsetStrategy.class);
 
     final var consumerRecordHandler = new ConsumerRecordHandler<>(
         record -> {
@@ -78,8 +78,8 @@ public class ConsumerRecordHandlerTest {
 
     final var subscriberSenderSendCalled = new AtomicBoolean(false);
     final var DLQSenderSendCalled = new AtomicBoolean(false);
-    final ConsumerOffsetManager<Object, Object> receiver
-        = (ConsumerOffsetManager<Object, Object>) mock(ConsumerOffsetManager.class);
+    final ConsumerRecordOffsetStrategy<Object, Object> receiver
+        = (ConsumerRecordOffsetStrategy<Object, Object>) mock(ConsumerRecordOffsetStrategy.class);
 
     final var consumerRecordHandler = new ConsumerRecordHandler<>(
         record -> {
@@ -112,8 +112,8 @@ public class ConsumerRecordHandlerTest {
 
     final var subscriberSenderSendCalled = new AtomicBoolean(false);
     final var DLQSenderSendCalled = new AtomicBoolean(false);
-    final ConsumerOffsetManager<Object, Object> receiver
-        = (ConsumerOffsetManager<Object, Object>) mock(ConsumerOffsetManager.class);
+    final ConsumerRecordOffsetStrategy<Object, Object> receiver
+        = (ConsumerRecordOffsetStrategy<Object, Object>) mock(ConsumerRecordOffsetStrategy.class);
 
     final var consumerRecordHandler = new ConsumerRecordHandler<>(
         record -> {
@@ -144,8 +144,8 @@ public class ConsumerRecordHandlerTest {
   @SuppressWarnings("unchecked")
   public void shouldCallFailedToSendToDLQIfValueMatchesAndSubscriberSenderFailsAndNoDLQSender() {
     final var subscriberSenderSendCalled = new AtomicBoolean(false);
-    final ConsumerOffsetManager<Object, Object> receiver
-        = (ConsumerOffsetManager<Object, Object>) mock(ConsumerOffsetManager.class);
+    final ConsumerRecordOffsetStrategy<Object, Object> receiver
+        = (ConsumerRecordOffsetStrategy<Object, Object>) mock(ConsumerRecordOffsetStrategy.class);
 
     final var consumerRecordHandler = new ConsumerRecordHandler<>(
         record -> {

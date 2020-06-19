@@ -2,9 +2,9 @@ package dev.knative.eventing.kafka.broker.core.testing.utils;
 
 import dev.knative.eventing.kafka.broker.core.BrokerWrapper;
 import dev.knative.eventing.kafka.broker.core.TriggerWrapper;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Broker;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Brokers;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Trigger;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Broker;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Brokers;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Trigger;
 import io.cloudevents.CloudEvent;
 import java.net.MalformedURLException;
 import java.net.URL;

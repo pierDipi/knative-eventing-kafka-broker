@@ -2,7 +2,7 @@ package dev.knative.eventing.kafka.broker.dispatcher.integration;
 
 import dev.knative.eventing.kafka.broker.core.Broker;
 import dev.knative.eventing.kafka.broker.core.Trigger;
-import dev.knative.eventing.kafka.broker.dispatcher.ConsumerOffsetManagerFactory;
+import dev.knative.eventing.kafka.broker.dispatcher.ConsumerRecordOffsetStrategyFactory;
 import dev.knative.eventing.kafka.broker.dispatcher.http.HttpConsumerVerticleFactory;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.kafka.CloudEventSerializer;
@@ -22,7 +22,7 @@ import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringSerializer;
 
-public class ConsumerVerticleFactoryDriver extends HttpConsumerVerticleFactory {
+public class ConsumerVerticleFactoryMock extends HttpConsumerVerticleFactory {
 
   // trigger.id() -> Mock*er
   private final Map<String, MockProducer<String, CloudEvent>> mockProducer;
@@ -30,14 +30,14 @@ public class ConsumerVerticleFactoryDriver extends HttpConsumerVerticleFactory {
 
   private List<ConsumerRecord<String, CloudEvent>> records;
 
-  public ConsumerVerticleFactoryDriver(
+  public ConsumerVerticleFactoryMock(
       final Properties consumerConfigs,
       final HttpClient client,
       final Vertx vertx,
       final Properties producerConfigs,
-      final ConsumerOffsetManagerFactory<String, CloudEvent> consumerOffsetManagerFactory) {
+      final ConsumerRecordOffsetStrategyFactory<String, CloudEvent> consumerRecordOffsetStrategyFactory) {
 
-    super(consumerOffsetManagerFactory, consumerConfigs, client, vertx, producerConfigs);
+    super(consumerRecordOffsetStrategyFactory, consumerConfigs, client, vertx, producerConfigs);
     mockProducer = new ConcurrentHashMap<>();
     mockConsumer = new ConcurrentHashMap<>();
   }

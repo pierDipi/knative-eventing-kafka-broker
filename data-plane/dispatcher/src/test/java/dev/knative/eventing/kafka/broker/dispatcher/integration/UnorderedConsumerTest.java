@@ -5,16 +5,15 @@ import static dev.knative.eventing.kafka.broker.dispatcher.file.FileWatcherTest.
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.knative.eventing.kafka.broker.core.ObjectsCreator;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Broker;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Broker;
 import dev.knative.eventing.kafka.broker.core.testing.utils.CoreObjects;
 import dev.knative.eventing.kafka.broker.dispatcher.BrokersManager;
-import dev.knative.eventing.kafka.broker.dispatcher.ConsumerOffsetManagerFactory;
+import dev.knative.eventing.kafka.broker.dispatcher.ConsumerRecordOffsetStrategyFactory;
 import dev.knative.eventing.kafka.broker.dispatcher.file.FileWatcher;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.core.message.MessageReader;
 import io.cloudevents.core.v1.CloudEventBuilder;
-import io.cloudevents.http.vertx.VertxHttpServerResponseMessageWriter;
-import io.cloudevents.http.vertx.VertxMessageReaderFactory;
+import io.cloudevents.http.vertx.VertxMessageFactory;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
@@ -46,12 +45,12 @@ public class UnorderedConsumerTest {
     final var consumerConfigs = new Properties();
     final var client = vertx.createHttpClient();
 
-    final var driver = new ConsumerVerticleFactoryDriver(
+    final var consumerVerticleFactoryMock = new ConsumerVerticleFactoryMock(
         consumerConfigs,
         client,
         vertx,
         producerConfigs,
-        ConsumerOffsetManagerFactory.create()
+        ConsumerRecordOffsetStrategyFactory.create()
     );
 
     final var event = new CloudEventBuilder()
@@ -66,14 +65,13 @@ public class UnorderedConsumerTest {
         new ConsumerRecord<>("", 0, 1, "", event),
         new ConsumerRecord<>("", 0, 2, "", event)
     );
-    driver.setRecords(consumerRecords);
+    consumerVerticleFactoryMock.setRecords(consumerRecords);
 
     final var brokersManager = new BrokersManager<>(
         vertx,
-        driver,
+        consumerVerticleFactoryMock,
         100,
-        100,
-        1000
+        100
     );
 
     final var objectsCreator = new ObjectsCreator(brokersManager);
@@ -110,8 +108,8 @@ public class UnorderedConsumerTest {
 
     waitEvents.await();
 
-    final var producers = driver.producers();
-    final var consumers = driver.consumers();
+    final var producers = consumerVerticleFactoryMock.producers();
+    final var consumers = consumerVerticleFactoryMock.consumers();
 
     assertThat(producers).hasSameSizeAs(consumers);
 
@@ -142,7 +140,7 @@ public class UnorderedConsumerTest {
     vertx.createHttpServer()
         .exceptionHandler(context::failNow)
         // request -> message -> event -> check event -> put event in response
-        .requestHandler(request -> VertxMessageReaderFactory.fromHttpServerRequest(request)
+        .requestHandler(request -> VertxMessageFactory.createReader(request)
             .onFailure(context::failNow)
             .map(MessageReader::toEvent)
             .onSuccess(receivedEvent -> {
@@ -154,7 +152,7 @@ public class UnorderedConsumerTest {
                 waitEvents.countDown();
               });
 
-              VertxHttpServerResponseMessageWriter.create(request.response()).writeBinary(event);
+              VertxMessageFactory.createWriter(request.response()).writeBinary(event);
             })
         )
         .listen(

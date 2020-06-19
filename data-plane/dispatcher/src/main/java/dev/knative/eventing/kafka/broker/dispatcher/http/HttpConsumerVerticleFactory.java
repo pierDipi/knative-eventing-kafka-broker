@@ -2,12 +2,11 @@ package dev.knative.eventing.kafka.broker.dispatcher.http;
 
 import dev.knative.eventing.kafka.broker.core.Broker;
 import dev.knative.eventing.kafka.broker.core.Trigger;
-import dev.knative.eventing.kafka.broker.dispatcher.ConsumerOffsetManagerFactory;
 import dev.knative.eventing.kafka.broker.dispatcher.ConsumerRecordHandler;
+import dev.knative.eventing.kafka.broker.dispatcher.ConsumerRecordOffsetStrategyFactory;
 import dev.knative.eventing.kafka.broker.dispatcher.ConsumerVerticle;
 import dev.knative.eventing.kafka.broker.dispatcher.ConsumerVerticleFactory;
 import io.cloudevents.CloudEvent;
-import io.vertx.circuitbreaker.CircuitBreaker;
 import io.vertx.circuitbreaker.CircuitBreakerOptions;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
@@ -25,7 +24,8 @@ public class HttpConsumerVerticleFactory implements ConsumerVerticleFactory<Clou
   private final HttpClient client;
   private final Vertx vertx;
   private final Properties producerConfigs;
-  private final ConsumerOffsetManagerFactory<String, CloudEvent> consumerOffsetManagerFactory;
+  private final ConsumerRecordOffsetStrategyFactory<String, CloudEvent>
+      consumerRecordOffsetStrategyFactory;
 
   /**
    * All args constructor.
@@ -36,19 +36,21 @@ public class HttpConsumerVerticleFactory implements ConsumerVerticleFactory<Clou
    * @param producerConfigs base producer configurations.
    */
   public HttpConsumerVerticleFactory(
-      final ConsumerOffsetManagerFactory<String, CloudEvent> consumerOffsetManagerFactory,
+      final ConsumerRecordOffsetStrategyFactory<String, CloudEvent>
+          consumerRecordOffsetStrategyFactory,
       final Properties consumerConfigs,
       final HttpClient client,
       final Vertx vertx,
       final Properties producerConfigs) {
 
-    Objects.requireNonNull(consumerOffsetManagerFactory, "provide consumerOffsetManagerFactory");
+    Objects.requireNonNull(consumerRecordOffsetStrategyFactory,
+        "provide consumerRecordOffsetStrategyFactory");
     Objects.requireNonNull(consumerConfigs, "provide consumerConfigs");
     Objects.requireNonNull(client, "provide message");
     Objects.requireNonNull(vertx, "provide vertx");
     Objects.requireNonNull(producerConfigs, "provide producerConfigs");
 
-    this.consumerOffsetManagerFactory = consumerOffsetManagerFactory;
+    this.consumerRecordOffsetStrategyFactory = consumerRecordOffsetStrategyFactory;
     this.consumerConfigs = consumerConfigs;
     this.producerConfigs = producerConfigs;
     this.client = client;
@@ -76,7 +78,8 @@ public class HttpConsumerVerticleFactory implements ConsumerVerticleFactory<Clou
 
     final var brokerDLQSender = createSender(broker.deadLetterSink(), circuitBreakerOptions);
 
-    final var consumerOffsetManager = consumerOffsetManagerFactory.get(consumer, broker, trigger);
+    final var consumerOffsetManager = consumerRecordOffsetStrategyFactory
+        .get(consumer, broker, trigger);
 
     final var sinkResponseHandler = new HttpSinkResponseHandler(broker.topic(), producer);
 
@@ -134,7 +137,6 @@ public class HttpConsumerVerticleFactory implements ConsumerVerticleFactory<Clou
       final CircuitBreakerOptions circuitBreakerOptions) {
 
     return new HttpConsumerRecordSender(
-        CircuitBreaker.create(target, vertx, circuitBreakerOptions),
         client,
         target
     );

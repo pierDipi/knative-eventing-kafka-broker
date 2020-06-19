@@ -4,18 +4,18 @@ import dev.knative.eventing.kafka.broker.core.Broker;
 import dev.knative.eventing.kafka.broker.core.Trigger;
 import io.vertx.kafka.client.consumer.KafkaConsumer;
 
-public interface ConsumerOffsetManagerFactory<K, V> {
+public interface ConsumerRecordOffsetStrategyFactory<K, V> {
 
-  static <K, V> ConsumerOffsetManagerFactory<K, V> create() {
-    return new ConsumerOffsetManagerFactory<>() {
+  static <K, V> ConsumerRecordOffsetStrategyFactory<K, V> create() {
+    return new ConsumerRecordOffsetStrategyFactory<>() {
     };
   }
 
-  default ConsumerOffsetManager<K, V> get(
+  default ConsumerRecordOffsetStrategy<K, V> get(
       final KafkaConsumer<K, V> consumer,
       final Broker broker,
       final Trigger<V> trigger) {
 
-    return new UnorderedConsumerOffsetManager<>(consumer);
+    return new UnorderedConsumerRecordOffsetStrategy<>(consumer);
   }
 }

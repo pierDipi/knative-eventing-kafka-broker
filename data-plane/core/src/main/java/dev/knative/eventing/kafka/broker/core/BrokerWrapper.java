@@ -1,6 +1,6 @@
 package dev.knative.eventing.kafka.broker.core;
 
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Broker;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Broker;
 import java.util.Objects;
 
 /**

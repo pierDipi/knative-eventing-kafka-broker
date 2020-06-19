@@ -12,23 +12,28 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class EventMatcherTest {
 
   @ParameterizedTest
   @MethodSource(value = {"testCases"})
-  public void match(final TestCase testCase) {
-    final var matcher = new EventMatcher(testCase.attributes);
+  public void match(
+      final Map<String, String> attributes,
+      final CloudEvent event,
+      final boolean shouldMatch) {
 
-    final var match = matcher.match(testCase.event);
+    final var matcher = new EventMatcher(attributes);
 
-    assertEquals(testCase.shouldMatch, match);
+    final var match = matcher.match(event);
+
+    assertEquals(shouldMatch, match);
   }
 
-  public static Stream<TestCase> testCases() {
+  public static Stream<Arguments> testCases() {
     return Stream.of(
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "1.0"
             ),
@@ -39,7 +44,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "0.3"
             ),
@@ -50,7 +55,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "0.3",
                 Constants.ID, "123-42"
@@ -62,7 +67,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "0.3",
                 Constants.ID, "123-42"
@@ -74,7 +79,7 @@ public class EventMatcherTest {
                 .build(),
             false
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "0.3",
                 Constants.ID, "123-42",
@@ -88,7 +93,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "1.0",
                 Constants.ID, "123-42",
@@ -104,7 +109,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "1.0",
                 Constants.ID, "123-42",
@@ -121,7 +126,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "1.0",
                 Constants.ID, "123-42",
@@ -138,7 +143,7 @@ public class EventMatcherTest {
                 .build(),
             false
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "1.0",
                 Constants.ID, "123-42",
@@ -164,7 +169,7 @@ public class EventMatcherTest {
                 .build(),
             false
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "0.3",
                 Constants.ID, "123-42",
@@ -189,7 +194,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "0.3",
                 Constants.ID, "123-42",
@@ -215,7 +220,7 @@ public class EventMatcherTest {
                 .build(),
             true
         ),
-        new TestCase(
+        Arguments.of(
             Map.of(
                 Constants.SPEC_VERSION, "1.0",
                 Constants.ID, "123-42",
@@ -255,18 +260,5 @@ public class EventMatcherTest {
 
     // DATACONTENTENCODING isn't usable, so +1
     assertEquals(size, EventMatcher.attributesMapper.size() + 1);
-  }
-
-  static final class TestCase {
-
-    final Map<String, String> attributes;
-    final CloudEvent event;
-    final boolean shouldMatch;
-
-    TestCase(Map<String, String> attributes, CloudEvent event, boolean shouldMatch) {
-      this.attributes = attributes;
-      this.event = event;
-      this.shouldMatch = shouldMatch;
-    }
   }
 }

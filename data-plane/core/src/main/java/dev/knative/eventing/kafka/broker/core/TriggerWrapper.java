@@ -1,6 +1,6 @@
 package dev.knative.eventing.kafka.broker.core;
 
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Trigger;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Trigger;
 import io.cloudevents.CloudEvent;
 import java.util.Map;
 import java.util.Objects;

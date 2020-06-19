@@ -29,7 +29,7 @@ public final class ConsumerRecordHandler<K, V, R> implements
   private final Filter<V> filter;
   private final ConsumerRecordSender<K, V, R> subscriberSender;
   private final ConsumerRecordSender<K, V, R> deadLetterQueueSender;
-  private final ConsumerOffsetManager<K, V> receiver;
+  private final ConsumerRecordOffsetStrategy<K, V> receiver;
   private final SinkResponseHandler<R> sinkResponseHandler;
 
   /**
@@ -37,16 +37,16 @@ public final class ConsumerRecordHandler<K, V, R> implements
    *
    * @param subscriberSender      sender to trigger subscriber
    * @param filter                event filter
-   * @param receiver              hook receiver {@link ConsumerOffsetManager}. It allows to plug in
-   *                              custom offset management depending on the success/failure during
-   *                              the algorithm.
+   * @param receiver              hook receiver {@link ConsumerRecordOffsetStrategy}. It allows to
+   *                              plug in custom offset management depending on the success/failure
+   *                              during the algorithm.
    * @param sinkResponseHandler   handler of the response from {@code subscriberSender}
    * @param deadLetterQueueSender sender to DLQ
    */
   public ConsumerRecordHandler(
       final ConsumerRecordSender<K, V, R> subscriberSender,
       final Filter<V> filter,
-      final ConsumerOffsetManager<K, V> receiver,
+      final ConsumerRecordOffsetStrategy<K, V> receiver,
       final SinkResponseHandler<R> sinkResponseHandler,
       final ConsumerRecordSender<K, V, R> deadLetterQueueSender) {
 
@@ -68,15 +68,15 @@ public final class ConsumerRecordHandler<K, V, R> implements
    *
    * @param subscriberSender    sender to trigger subscriber
    * @param filter              event filter
-   * @param receiver            hook receiver {@link ConsumerOffsetManager}. It allows to plug in
-   *                            custom offset management depending on the success/failure during the
-   *                            algorithm.
+   * @param receiver            hook receiver {@link ConsumerRecordOffsetStrategy}. It allows to
+   *                            plug in custom offset management depending on the success/failure
+   *                            during the algorithm.
    * @param sinkResponseHandler handler of the response
    */
   public ConsumerRecordHandler(
       final ConsumerRecordSender<K, V, R> subscriberSender,
       final Filter<V> filter,
-      final ConsumerOffsetManager<K, V> receiver,
+      final ConsumerRecordOffsetStrategy<K, V> receiver,
       final SinkResponseHandler<R> sinkResponseHandler) {
 
     this(

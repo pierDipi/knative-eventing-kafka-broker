@@ -2,6 +2,7 @@ package dev.knative.eventing.kafka.broker.dispatcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -25,10 +26,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.mockito.Mockito;
 
 @ExtendWith(VertxExtension.class)
 @Execution(value = ExecutionMode.CONCURRENT)
-public class UnorderedConsumerOffsetManagerTest {
+public class UnorderedConsumerRecordOffsetStrategyTest {
 
   private static final int TIMEOUT_MS = 200;
 
@@ -36,7 +38,7 @@ public class UnorderedConsumerOffsetManagerTest {
   @SuppressWarnings("unchecked")
   public void recordReceived() {
     final KafkaConsumer<Object, Object> consumer = mock(KafkaConsumer.class);
-    new UnorderedConsumerOffsetManager<>(consumer).recordReceived(null);
+    new UnorderedConsumerRecordOffsetStrategy<>(consumer).recordReceived(null);
 
     shouldNeverCommit(consumer);
     shouldNeverPause(consumer);
@@ -58,7 +60,7 @@ public class UnorderedConsumerOffsetManagerTest {
   @SuppressWarnings("unchecked")
   public void failedToSendToDLQ() {
     final KafkaConsumer<Object, Object> consumer = mock(KafkaConsumer.class);
-    new UnorderedConsumerOffsetManager<>(consumer).failedToSendToDLQ(null, null);
+    new UnorderedConsumerRecordOffsetStrategy<>(consumer).failedToSendToDLQ(null, null);
 
     shouldNeverCommit(consumer);
     shouldNeverPause(consumer);
@@ -70,9 +72,10 @@ public class UnorderedConsumerOffsetManagerTest {
         -> unorderedConsumerOffsetManager.recordDiscarded(kafkaConsumerRecord));
   }
 
+  @SuppressWarnings("unchecked")
   private static <K, V> void shouldCommit(
       final Vertx vertx,
-      final BiConsumer<KafkaConsumerRecord<K, V>, UnorderedConsumerOffsetManager<K, V>> rConsumer) {
+      final BiConsumer<KafkaConsumerRecord<K, V>, UnorderedConsumerRecordOffsetStrategy<K, V>> rConsumer) {
 
     final var topic = "topic-42";
     final var partition = 42;
@@ -84,9 +87,23 @@ public class UnorderedConsumerOffsetManagerTest {
     final var mockConsumer = new MockConsumer<K, V>(OffsetResetStrategy.LATEST);
     mockConsumer.assign(partitions);
 
-    final var consumer = KafkaConsumer.create(vertx, mockConsumer);
+    final KafkaConsumer<K, V> consumer = (KafkaConsumer<K, V>) Mockito.mock(KafkaConsumer.class);
+    doAnswer(invocation -> {
 
-    final var offsetManager = new UnorderedConsumerOffsetManager<>(consumer);
+      final Map<io.vertx.kafka.client.common.TopicPartition, io.vertx.kafka.client.consumer.OffsetAndMetadata> topicsPartitions = invocation
+          .getArgument(0);
+
+      final var tp = topicsPartitions.entrySet().iterator().next();
+
+      mockConsumer.commitSync(Map.of(
+          new TopicPartition(tp.getKey().getTopic(), tp.getKey().getPartition()),
+          new OffsetAndMetadata(tp.getValue().getOffset(), tp.getValue().getMetadata())
+      ));
+
+      return null;
+    }).when(consumer).commit(any(), any());
+
+    final var offsetManager = new UnorderedConsumerRecordOffsetStrategy<>(consumer);
     final var record = new KafkaConsumerRecordImpl<>(
         new ConsumerRecord<K, V>(
             topic,
@@ -98,12 +115,6 @@ public class UnorderedConsumerOffsetManagerTest {
     );
 
     rConsumer.accept(record, offsetManager);
-    try {
-      // commit happens asynchronously, which means this test could potentially fail, so let's sleep
-      Thread.sleep(TIMEOUT_MS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
 
     final var committed = mockConsumer.committed(partitions);
 

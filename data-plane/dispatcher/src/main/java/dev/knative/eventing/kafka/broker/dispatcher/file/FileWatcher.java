@@ -7,7 +7,7 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Brokers;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Brokers;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -18,7 +18,6 @@ import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchService;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +36,6 @@ public class FileWatcher {
   private final Path toWatchPath;
   private final File toWatch;
 
-  private final AtomicBoolean watching = new AtomicBoolean();
-
   /**
    * All args constructor.
    *
@@ -56,6 +53,10 @@ public class FileWatcher {
     Objects.requireNonNull(brokersConsumer, "provide consumer");
     Objects.requireNonNull(file, "provide file");
 
+    // register the given watch service.
+    // Note: this watch a directory and not the single file we're interested in, so that's the
+    // reason in #watch() we filter watch service events based on the updated file.
+
     this.brokersConsumer = brokersConsumer;
     toWatch = file.getAbsoluteFile();
     logger.info("start watching {}", toWatch);
@@ -64,6 +65,7 @@ public class FileWatcher {
     toWatchParentPath = file.getParentFile().toPath();
 
     this.watcher = watcher;
+
     toWatchParentPath.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
   }
 
@@ -74,43 +76,42 @@ public class FileWatcher {
    * @throws InterruptedException see {@link WatchService#take()}
    */
   public void watch() throws IOException, InterruptedException {
-    if (watching.getAndSet(true)) {
-      return;
-    }
 
-    try {
-      while (true) {
-        var shouldUpdate = false;
+    while (true) {
+      var shouldUpdate = false;
 
-        // Note: take() blocks
-        final var key = watcher.take();
-        logger.info("broker updates");
+      // Note: take() blocks
+      final var key = watcher.take();
+      logger.info("broker updates");
 
-        if (!key.isValid()) {
-          logger.warn("invalid key");
-          continue;
-        }
-
-        for (final var event : key.pollEvents()) {
-
-          final WatchEvent<Path> ev = cast(event);
-          final var child = toWatchParentPath.resolve(ev.context());
-          final var kind = event.kind();
-          if (kind != OVERFLOW && child.equals(toWatchPath)) {
-            shouldUpdate = true;
-            break;
-          }
-
-        }
-
-        if (shouldUpdate) {
-          update();
-        }
-
-        key.reset();
+      // this should be rare but it can actually happen so check watch key validity
+      if (!key.isValid()) {
+        logger.warn("invalid key");
+        continue;
       }
-    } finally {
-      watching.set(false);
+
+      // loop through all watch service events and determine if an update we're interested in
+      // has occurred.
+      for (final var event : key.pollEvents()) {
+
+        final WatchEvent<Path> ev = cast(event);
+        final var child = toWatchParentPath.resolve(ev.context());
+        final var kind = event.kind();
+
+        // check if we're interested in the updated file
+        if (kind != OVERFLOW && child.equals(toWatchPath)) {
+          shouldUpdate = true;
+          break;
+        }
+
+      }
+
+      if (shouldUpdate) {
+        update();
+      }
+
+      // reset the watch key, so that we receives new events
+      key.reset();
     }
   }
 
@@ -124,9 +125,12 @@ public class FileWatcher {
 
   private void parseFromJson(final Reader content) throws IOException {
     try {
+
       final var brokers = Brokers.newBuilder();
       JsonFormat.parser().merge(content, brokers);
+
       brokersConsumer.accept(brokers.build());
+
     } catch (final InvalidProtocolBufferException ex) {
       logger.warn("failed to parse from JSON", ex);
     }

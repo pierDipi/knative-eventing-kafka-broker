@@ -4,10 +4,13 @@ import dev.knative.eventing.kafka.broker.core.Broker;
 import dev.knative.eventing.kafka.broker.core.ObjectsReconciler;
 import dev.knative.eventing.kafka.broker.core.Trigger;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.CompositeFuture;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
 import io.vertx.core.Vertx;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -34,24 +37,20 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
   private final Vertx vertx;
   private final ConsumerVerticleFactory<T> consumerFactory;
   private final int triggersInitialCapacity;
-  private final long retryDelayAfterFailedToDeployVerticleMs;
 
   /**
    * All args constructor.
    *
-   * @param vertx                                   vertx instance.
-   * @param consumerFactory                         consumer factory.
-   * @param brokersInitialCapacity                  brokers container initial capacity.
-   * @param triggersInitialCapacity                 triggers container initial capacity.
-   * @param retryDelayAfterFailedToDeployVerticleMs delay to wait before retrying deploying
-   *                                                verticles.
+   * @param vertx                   vertx instance.
+   * @param consumerFactory         consumer factory.
+   * @param brokersInitialCapacity  brokers container initial capacity.
+   * @param triggersInitialCapacity triggers container initial capacity.
    */
   public BrokersManager(
       final Vertx vertx,
       final ConsumerVerticleFactory<T> consumerFactory,
       final int brokersInitialCapacity,
-      final int triggersInitialCapacity,
-      final long retryDelayAfterFailedToDeployVerticleMs) {
+      final int triggersInitialCapacity) {
 
     Objects.requireNonNull(vertx, "provide vertx instance");
     Objects.requireNonNull(consumerFactory, "provide consumer factory");
@@ -61,16 +60,9 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
     if (triggersInitialCapacity <= 0) {
       throw new IllegalArgumentException("triggersInitialCapacity cannot be negative or 0");
     }
-    if (retryDelayAfterFailedToDeployVerticleMs <= 0) {
-      throw new IllegalArgumentException(
-          "retryDelayAfterFailedToDeployVerticleMs cannot be negative or 0"
-      );
-    }
-
     this.vertx = vertx;
     this.consumerFactory = consumerFactory;
     this.triggersInitialCapacity = triggersInitialCapacity;
-    this.retryDelayAfterFailedToDeployVerticleMs = retryDelayAfterFailedToDeployVerticleMs;
     brokers = new HashMap<>(brokersInitialCapacity);
   }
 
@@ -78,41 +70,66 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
    * {@inheritDoc}
    */
   @Override
-  public void reconcile(final Map<Broker, Set<Trigger<T>>> objects) {
+  @SuppressWarnings("rawtypes")
+  public Future<Void> reconcile(final Map<Broker, Set<Trigger<T>>> newObjects) {
+    final List<Future> futures = new ArrayList<>(newObjects.size() * 2);
 
     // diffing previous and new --> remove deleted objects
     for (final var brokersIt = brokers.entrySet().iterator(); brokersIt.hasNext(); ) {
-      final var entry = brokersIt.next();
-      final var broker = entry.getKey();
-      if (!objects.containsKey(broker)) {
-        // broker deleted
+
+      final var brokerTriggers = brokersIt.next();
+      final var broker = brokerTriggers.getKey();
+
+      // check if the old broker has been deleted or updated.
+      if (!newObjects.containsKey(broker)) {
+
+        // broker deleted or updated, so remove it
         brokersIt.remove();
-        for (final var e : entry.getValue().entrySet()) {
-          undeploy(broker, e.getKey(), e.getValue());
+
+        // undeploy all verticles associated with triggers of the deleted broker.
+        for (final var e : brokerTriggers.getValue().entrySet()) {
+          futures.add(undeploy(broker, e.getKey(), e.getValue()));
         }
+
         continue;
       }
 
-      for (final var triggersIt = entry.getValue().entrySet().iterator(); triggersIt.hasNext(); ) {
+      // broker is there, so check if some triggers have been deleted.
+      final var triggersVerticles = brokerTriggers.getValue();
+      for (final var triggersIt = triggersVerticles.entrySet().iterator(); triggersIt.hasNext(); ) {
+
         final var triggerVerticle = triggersIt.next();
-        if (!objects.get(broker).contains(triggerVerticle.getKey())) {
-          // trigger deleted
+
+        // check if the trigger has been deleted or updated.
+        if (!newObjects.get(broker).contains(triggerVerticle.getKey())) {
+
+          // trigger deleted or updated, so remove it
           triggersIt.remove();
-          undeploy(broker, triggerVerticle.getKey(), triggerVerticle.getValue());
+
+          // undeploy verticle associated with the deleted trigger.
+          futures.add(undeploy(
+              broker,
+              triggerVerticle.getKey(),
+              triggerVerticle.getValue()
+          ));
         }
       }
     }
 
-    // add all new objects
-    for (final var entry : objects.entrySet()) {
+    // add all new objects.
+    for (final var entry : newObjects.entrySet()) {
       final var broker = entry.getKey();
       for (final var trigger : entry.getValue()) {
-        addBroker(broker, trigger);
+
+        futures.add(addBroker(broker, trigger));
+
       }
     }
+
+    return CompositeFuture.all(futures).mapEmpty();
   }
 
-  private void addBroker(final Broker broker, final Trigger<T> trigger) {
+  private Future<Void> addBroker(final Broker broker, final Trigger<T> trigger) {
     final Map<Trigger<T>, AbstractVerticle> triggers;
 
     if (brokers.containsKey(broker)) {
@@ -124,11 +141,14 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
 
     if (trigger == null || triggers.containsKey(trigger)) {
       // the trigger is already there and it hasn't been updated.
-      return;
+      return Future.succeededFuture();
     }
 
+    final Promise<Void> promise = Promise.promise();
+
     consumerFactory.get(broker, trigger)
-        .onSuccess(verticle -> startVerticle(verticle, broker, triggers, trigger))
+        .compose(verticle -> startVerticle(verticle, broker, triggers, trigger, promise))
+        .onSuccess(ignored -> promise.tryComplete())
         .onFailure(cause -> {
           // probably configuration are wrong, so do not retry.
           logger.error(
@@ -136,22 +156,29 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
               trigger,
               cause
           );
+          promise.tryFail(cause);
         });
+
+    return promise.future();
   }
 
-  private void startVerticle(
+  private Future<Void> startVerticle(
       final AbstractVerticle verticle,
       final Broker broker,
       final Map<Trigger<T>, AbstractVerticle> triggers,
-      final Trigger<T> trigger) {
+      final Trigger<T> trigger,
+      Promise<Void> promise) {
 
     addTrigger(triggers, trigger, verticle)
-        .onSuccess(msg -> logger.info(
-            "verticle for trigger {} associated with broker {} deployed - message: {}",
-            trigger,
-            broker,
-            msg
-        ))
+        .onSuccess(msg -> {
+          logger.info(
+              "verticle for trigger {} associated with broker {} deployed - message: {}",
+              trigger,
+              broker,
+              msg
+          );
+          promise.tryComplete();
+        })
         .onFailure(cause -> {
           // this is a bad state we cannot start the verticle for consuming messages.
           logger.error(
@@ -160,18 +187,10 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
               broker,
               cause
           );
-
-          // retry to start verticle after the given delay.
-          vertx.setTimer(retryDelayAfterFailedToDeployVerticleMs, id -> {
-            logger.warn(
-                "retry to start verticle for trigger {} associated with broker {}",
-                trigger,
-                broker
-            );
-
-            startVerticle(verticle, broker, triggers, trigger);
-          });
+          promise.tryFail(cause);
         });
+
+    return promise.future();
   }
 
   private Future<String> addTrigger(
@@ -185,10 +204,13 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
     return promise.future();
   }
 
-  private void undeploy(Broker broker, Trigger<T> trigger, AbstractVerticle verticle) {
+  private Future<Void> undeploy(Broker broker, Trigger<T> trigger, AbstractVerticle verticle) {
+    final Promise<Void> promise = Promise.promise();
+
     vertx.undeploy(verticle.deploymentID(), result -> {
       if (result.succeeded()) {
         logger.info("removed trigger {} associated with broker {}", trigger, broker);
+        promise.tryComplete();
         return;
       }
 
@@ -198,11 +220,9 @@ public final class BrokersManager<T> implements ObjectsReconciler<T> {
           broker,
           result.cause()
       );
-
-      vertx.setTimer(retryDelayAfterFailedToDeployVerticleMs, id -> {
-        logger.info("retry to remove trigger {} associated with broker {}", trigger, broker);
-        undeploy(broker, trigger, verticle);
-      });
+      promise.tryFail(result.cause());
     });
+
+    return promise.future();
   }
 }

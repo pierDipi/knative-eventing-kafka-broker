@@ -9,8 +9,9 @@ import static dev.knative.eventing.kafka.broker.core.testing.utils.CoreObjects.t
 import static dev.knative.eventing.kafka.broker.core.testing.utils.CoreObjects.trigger4;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Brokers;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Brokers;
+import io.vertx.core.Future;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +31,7 @@ public class ObjectsCreatorTest {
     final var creator = new ObjectsCreator(objects -> {
       called.set(true);
       assertThat(objects).usingRecursiveComparison().isEqualTo(brokers);
+      return Future.succeededFuture();
     });
 
     creator.accept(Brokers.newBuilder()
@@ -55,6 +57,7 @@ public class ObjectsCreatorTest {
     final var creator = new ObjectsCreator(objects -> {
       called.set(true);
       assertThat(objects).usingRecursiveComparison().isEqualTo(brokers);
+      return Future.succeededFuture();
     });
 
     creator.accept(brokers());

@@ -58,12 +58,4 @@ public final class ConsumerVerticle<K, V> extends AbstractVerticle {
   public void stop(Promise<Void> stopPromise) {
     consumer.close(stopPromise);
   }
-
-  /**
-   * {@inheritDoc}
-   */
-  @Override
-  public void stop() {
-    consumer.close();
-  }
 }

@@ -15,6 +15,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.util.Properties;
+import java.util.concurrent.ArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +28,6 @@ public class Main {
   private static final String CONSUMER_CONFIG_FILE_PATH = "CONSUMER_CONFIG_FILE_PATH";
   private static final String BROKERS_INITIAL_CAPACITY = "BROKERS_INITIAL_CAPACITY";
   private static final String TRIGGERS_INITIAL_CAPACITY = "TRIGGERS_INITIAL_CAPACITY";
-  private static final String RETRY_DELAY_AFTER_FAILED_VERTICLE_DEPLOY_MS
-      = "RETRY_DELAY_AFTER_FAILED_VERTICLE_DEPLOY_MS";
 
   /**
    * Dispatcher entry point.
@@ -37,40 +36,25 @@ public class Main {
    */
   public static void main(final String[] args) {
 
-    final var envConfigs = new ConfigStoreOptions()
-        .setType("env")
-        .setOptional(false)
-        .setConfig(new JsonObject().put("raw-data", true));
-
-    final var configRetrieverOptions = new ConfigRetrieverOptions()
-        .addStore(envConfigs);
-
     final var vertx = Vertx.vertx();
-    final var configRetriever = ConfigRetriever.create(vertx, configRetrieverOptions);
+    Runtime.getRuntime().addShutdownHook(new Thread(vertx::close));
 
-    Future.future(configRetriever::getConfig)
-        .onSuccess(json -> {
-          final var watcherThread = new Thread(() -> start(vertx, json));
-          Runtime.getRuntime().addShutdownHook(new Thread(watcherThread::interrupt));
-          watcherThread.start();
-        })
-        .onFailure(cause -> {
-          logger.error("failed to retrieve configurations", cause);
-          shutdown(vertx);
-        });
-
-  }
-
-  private static void start(final Vertx vertx, final JsonObject json) {
+    final JsonObject json;
+    try {
+      json = getConfigurations(vertx);
+    } catch (InterruptedException e) {
+      System.exit(1);
+      return;
+    }
 
     final var producerConfigs = config(json.getString(PRODUCER_CONFIG_FILE_PATH));
     final var consumerConfigs = config(json.getString(CONSUMER_CONFIG_FILE_PATH));
 
-    final ConsumerOffsetManagerFactory<String, CloudEvent> consumerOffsetManagerFactory
-        = ConsumerOffsetManagerFactory.create();
+    final ConsumerRecordOffsetStrategyFactory<String, CloudEvent>
+        consumerRecordOffsetStrategyFactory = ConsumerRecordOffsetStrategyFactory.create();
 
     final var consumerVerticleFactory = new HttpConsumerVerticleFactory(
-        consumerOffsetManagerFactory,
+        consumerRecordOffsetStrategyFactory,
         consumerConfigs,
         vertx.createHttpClient(),
         vertx,
@@ -81,8 +65,7 @@ public class Main {
         vertx,
         consumerVerticleFactory,
         Integer.parseInt(json.getString(BROKERS_INITIAL_CAPACITY)),
-        Integer.parseInt(json.getString(TRIGGERS_INITIAL_CAPACITY)),
-        Long.parseLong(json.getString(RETRY_DELAY_AFTER_FAILED_VERTICLE_DEPLOY_MS))
+        Integer.parseInt(json.getString(TRIGGERS_INITIAL_CAPACITY))
     );
 
     final var objectCreator = new ObjectsCreator(brokersManager);
@@ -93,16 +76,14 @@ public class Main {
           objectCreator,
           new File(json.getString(BROKERS_TRIGGERS_PATH))
       );
-      fw.watch();
-    } catch (IOException | InterruptedException e) {
-      logger.error("watcher exception", e);
+
+      fw.watch(); // block forever
+
+    } catch (InterruptedException | IOException ex) {
+      logger.error("failed during filesystem watch", ex);
     } finally {
       vertx.close();
     }
-  }
-
-  private static void shutdown(Vertx vertx) {
-    vertx.close(ignored -> System.exit(1));
   }
 
   private static Properties config(final String path) {
@@ -118,5 +99,28 @@ public class Main {
     }
 
     return consumerConfigs;
+  }
+
+  private static JsonObject getConfigurations(final Vertx vertx) throws InterruptedException {
+
+    final var envConfigs = new ConfigStoreOptions()
+        .setType("env")
+        .setOptional(false)
+        .setConfig(new JsonObject().put("raw-data", true));
+
+    final var configRetrieverOptions = new ConfigRetrieverOptions()
+        .addStore(envConfigs);
+
+    final var configRetriever = ConfigRetriever.create(vertx, configRetrieverOptions);
+
+    final var waitConfigs = new ArrayBlockingQueue<JsonObject>(1);
+    Future.future(configRetriever::getConfig)
+        .onSuccess(waitConfigs::add)
+        .onFailure(cause -> {
+          logger.error("failed to retrieve configurations", cause);
+          vertx.close(ignored -> System.exit(1));
+        });
+
+    return waitConfigs.take();
   }
 }

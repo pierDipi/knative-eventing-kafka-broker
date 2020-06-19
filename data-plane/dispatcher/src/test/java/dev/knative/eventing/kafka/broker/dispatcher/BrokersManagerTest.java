@@ -15,10 +15,9 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
+import io.vertx.junit5.VertxTestContext;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -32,58 +31,61 @@ public class BrokersManagerTest {
 
   @Test
   @Timeout(value = 2)
-  public void shouldAddBrokerAndDeployVerticles(final Vertx vertx)
-      throws Exception {
+  public void shouldAddBrokerAndDeployVerticles(final Vertx vertx, final VertxTestContext context) {
 
     final var brokers = Map.of(
         broker1(), Set.of(trigger1(), trigger2(), trigger4()),
         broker2(), Set.of(trigger1(), trigger2(), trigger3())
     );
     final var numTriggers = numTriggers(brokers);
-
-    final var position = new AtomicInteger(0);
-    final var verticles = new Verticles(numTriggers);
+    final var checkpoints = context.checkpoint(1);
 
     final var brokersManager = new BrokersManager<CloudEvent>(
         vertx,
-        (broker, trigger) -> Future.succeededFuture(verticles.get(position.getAndIncrement())),
+        (broker, trigger) -> Future.succeededFuture(new AbstractVerticle() {
+        }),
         100,
-        100,
-        1000
+        100
     );
 
-    brokersManager.reconcile(brokers);
-    verticles.waitStarted();
+    final var reconciled = brokersManager.reconcile(brokers);
 
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggers);
-    assertThat(position.get()).isEqualTo(numTriggers);
+    reconciled.onSuccess(ignored -> context.verify(() -> {
+      assertThat(vertx.deploymentIDs()).hasSize(numTriggers);
+      checkpoints.flag();
+    }));
   }
 
   @Test
   @Timeout(value = 2)
-  public void shouldNotDeployWhenFailedToGetVerticle(final Vertx vertx) {
+  public void shouldNotDeployWhenFailedToGetVerticle(
+      final Vertx vertx,
+      final VertxTestContext context) {
 
     final var brokers = Map.of(
         broker1(), Set.of(trigger1(), trigger2(), trigger4()),
         broker2(), Set.of(trigger1(), trigger2(), trigger3())
     );
+    final var checkpoint = context.checkpoint(1);
 
     final var brokersManager = new BrokersManager<CloudEvent>(
         vertx,
         (broker, trigger) -> Future.failedFuture(new UnsupportedOperationException()),
         100,
-        100,
-        1000
+        100
     );
 
-    brokersManager.reconcile(brokers);
-
-    assertThat(vertx.deploymentIDs()).hasSize(0);
+    brokersManager.reconcile(brokers).onFailure(ignored -> context.verify(() -> {
+      assertThat(vertx.deploymentIDs()).hasSize(0);
+      checkpoint.flag();
+    }));
   }
 
   @Test
   @Timeout(value = 2)
-  public void shouldStopVerticleWhenTriggerDeleted(final Vertx vertx) throws Exception {
+  public void shouldStopVerticleWhenTriggerDeleted(
+      final Vertx vertx,
+      final VertxTestContext context) {
 
     final var brokersOld = Map.of(
         broker1(), Set.of(trigger1())
@@ -95,28 +97,35 @@ public class BrokersManagerTest {
     );
     final var numTriggersNew = numTriggers(brokersNew);
 
-    final var verticle = new Verticle();
+    final var checkpoints = context.checkpoint(2);
 
     final var brokersManager = new BrokersManager<CloudEvent>(
         vertx,
-        (broker, trigger) -> Future.succeededFuture(verticle),
+        (broker, trigger) -> Future.succeededFuture(new AbstractVerticle() {
+        }),
         100,
-        100,
-        1000
+        100
     );
 
-    brokersManager.reconcile(brokersOld);
-    verticle.waitStarted();
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggersOld);
+    brokersManager.reconcile(brokersOld).onSuccess(ignored -> {
 
-    brokersManager.reconcile(brokersNew);
-    verticle.waitStopped();
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggersNew);
+      context.verify(() -> {
+        assertThat(vertx.deploymentIDs()).hasSize(numTriggersOld);
+        checkpoints.flag();
+      });
+
+      brokersManager.reconcile(brokersNew).onSuccess(ok -> context.verify(() -> {
+        assertThat(vertx.deploymentIDs()).hasSize(numTriggersNew);
+        checkpoints.flag();
+      }));
+    });
   }
 
   @Test
   @Timeout(value = 2)
-  public void shouldStopVerticlesWhenBrokerDeleted(final Vertx vertx) throws Exception {
+  public void shouldStopVerticlesWhenBrokerDeleted(
+      final Vertx vertx,
+      final VertxTestContext context) {
 
     final var brokersOld = Map.of(
         broker1(), Set.of(trigger1(), trigger2(), trigger4()),
@@ -129,29 +138,34 @@ public class BrokersManagerTest {
     );
     final var numTriggersNew = numTriggers(brokersNew);
 
-    final var position = new AtomicInteger(0);
-    final var verticles = new Verticles(numTriggersOld);
+    final var checkpoints = context.checkpoint(2);
 
     final var brokersManager = new BrokersManager<CloudEvent>(
         vertx,
-        (broker, trigger) -> Future.succeededFuture(verticles.get(position.getAndIncrement())),
+        (broker, trigger) -> Future.succeededFuture(new AbstractVerticle() {
+        }),
         100,
-        100,
-        1000
+        100
     );
 
-    brokersManager.reconcile(brokersOld);
-    verticles.waitStarted();
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggersOld);
+    brokersManager.reconcile(brokersOld).onSuccess(ignored -> {
+      context.verify(() -> {
+        assertThat(vertx.deploymentIDs()).hasSize(numTriggersOld);
+        checkpoints.flag();
+      });
 
-    brokersManager.reconcile(brokersNew);
-    verticles.waitStopped();
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggersNew);
+      brokersManager.reconcile(brokersNew).onSuccess(ok -> context.verify(() -> {
+        assertThat(vertx.deploymentIDs()).hasSize(numTriggersNew);
+        checkpoints.flag();
+      }));
+    });
   }
 
   @Test
   @Timeout(value = 2)
-  public void shouldStopAndStartVerticlesWhenTriggerDeletedAndReAdded(final Vertx vertx)
+  public void shouldStopAndStartVerticlesWhenTriggerDeletedAndReAdded(
+      final Vertx vertx,
+      final VertxTestContext context)
       throws Exception {
 
     final var brokersOld = Map.of(
@@ -166,40 +180,44 @@ public class BrokersManagerTest {
     );
     final var numTriggersNew = numTriggers(brokersNew);
 
-    final var position = new AtomicInteger(0);
-    final var verticles = new Verticles(numTriggersOld);
+    final var checkpoints = context.checkpoint(3);
 
     final var brokersManager = new BrokersManager<CloudEvent>(
         vertx,
-        (broker, trigger) -> Future.succeededFuture(verticles.get(position.getAndIncrement())),
+        (broker, trigger) -> Future.succeededFuture(new AbstractVerticle() {
+        }),
         100,
-        100,
-        1000
+        100
     );
 
-    brokersManager.reconcile(brokersOld);
-    verticles.waitStarted();
-
     final var oldDeployments = vertx.deploymentIDs();
-    assertThat(oldDeployments).hasSize(numTriggersOld);
+    brokersManager.reconcile(brokersOld).onSuccess(ignored -> {
 
-    verticles.reset();
-    position.set(0);
-    brokersManager.reconcile(brokersNew);
-    verticles.waitStarted(0);
+      context.verify(() -> {
+        assertThat(oldDeployments).hasSize(numTriggersOld);
+        checkpoints.flag();
+      });
 
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggersNew);
-    assertThat(vertx.deploymentIDs()).contains(oldDeployments.toArray(new String[0]));
+      brokersManager.reconcile(brokersNew).onSuccess(ok -> {
+        context.verify(() -> {
+          assertThat(vertx.deploymentIDs()).hasSize(numTriggersNew);
+          assertThat(vertx.deploymentIDs()).contains(oldDeployments.toArray(new String[0]));
+          checkpoints.flag();
+        });
 
-    position.set(0);
-    brokersManager.reconcile(brokersOld);
-    verticles.waitStarted(0);
-    assertThat(vertx.deploymentIDs()).hasSize(numTriggersOld);
+        brokersManager.reconcile(brokersOld).onSuccess(ok2 -> context.verify(() -> {
+          assertThat(oldDeployments).hasSize(numTriggersOld);
+          checkpoints.flag();
+        }));
+      });
+    });
   }
 
   @Test
   @Timeout(value = 2)
-  public void shouldDoNothingWhenTheStateIsTheSame(final Vertx vertx) throws InterruptedException {
+  public void shouldDoNothingWhenTheStateIsTheSame(
+      final Vertx vertx,
+      final VertxTestContext context) throws InterruptedException {
 
     final var brokers = Map.of(
         broker1(), Set.of(trigger1(), trigger2(), trigger4()),
@@ -212,25 +230,29 @@ public class BrokersManagerTest {
         broker2(), Set.of(trigger1(), trigger2(), trigger3())
     );
 
-    final var position = new AtomicInteger(0);
-    final var verticles = new Verticles(numTriggers);
+    final var checkpoints = context.checkpoint(2);
 
     final var brokersManager = new BrokersManager<CloudEvent>(
         vertx,
-        (broker, trigger) -> Future.succeededFuture(verticles.get(position.getAndIncrement())),
+        (broker, trigger) -> Future.succeededFuture(new AbstractVerticle() {
+        }),
         100,
-        100,
-        1000
+        100
     );
+    brokersManager.reconcile(brokers).onSuccess(ignored -> {
 
-    brokersManager.reconcile(brokers);
-    verticles.waitStarted();
+      final var deployments = vertx.deploymentIDs();
 
-    final var deployments = vertx.deploymentIDs();
-    assertThat(deployments).hasSize(numTriggers);
+      context.verify(() -> {
+        assertThat(deployments).hasSize(numTriggers);
+        checkpoints.flag();
+      });
 
-    brokersManager.reconcile(brokers2);
-    assertThat(vertx.deploymentIDs()).containsExactlyInAnyOrder(deployments.toArray(new String[0]));
+      brokersManager.reconcile(brokers2).onSuccess(ok -> context.verify(() -> {
+        assertThat(vertx.deploymentIDs()).containsExactly(deployments.toArray(new String[0]));
+        checkpoints.flag();
+      }));
+    });
   }
 
   @Test
@@ -239,8 +261,7 @@ public class BrokersManagerTest {
         vertx,
         (broker, trigger) -> Future.succeededFuture(),
         -1,
-        100,
-        1000
+        100
     ));
   }
 
@@ -250,106 +271,11 @@ public class BrokersManagerTest {
         vertx,
         (broker, trigger) -> Future.succeededFuture(),
         100,
-        -1,
-        1000
-    ));
-  }
-
-  @Test
-  public void shouldThrowIfRetryDelayAfterFailedToDeployVerticleMsIsLessOrEqualToZero(
-      final Vertx vertx) {
-    Assertions.assertThrows(IllegalArgumentException.class, () -> new BrokersManager<>(
-        vertx,
-        (broker, trigger) -> Future.succeededFuture(),
-        100,
-        100,
         -1
     ));
   }
 
   private static int numTriggers(Map<Broker, Set<Trigger<CloudEvent>>> brokers) {
     return brokers.values().stream().mapToInt(Set::size).sum();
-  }
-
-  /**
-   * Mock verticle to receive start and stop signals.
-   *
-   * <p>The implementation is not thread-safe.
-   */
-  public static final class Verticle extends AbstractVerticle {
-
-    private CountDownLatch started = new CountDownLatch(1);
-    private CountDownLatch stopped = new CountDownLatch(1);
-
-    @Override
-    public void start() {
-      started.countDown();
-    }
-
-    @Override
-    public void stop() {
-      stopped.countDown();
-    }
-
-    public void waitStopped() throws InterruptedException {
-      stopped.await();
-      Thread.sleep(50); // reduce flakiness
-    }
-
-    public void waitStarted() throws InterruptedException {
-      started.await();
-      Thread.sleep(50); // reduce flakiness
-    }
-
-    public void reset() {
-      started = new CountDownLatch(1);
-      stopped = new CountDownLatch(1);
-    }
-  }
-
-  public static class Verticles {
-
-    private final Verticle[] verticles;
-
-    public Verticles(int count) {
-      verticles = new Verticle[count];
-      for (int i = 0; i < count; i++) {
-        verticles[i] = new Verticle();
-      }
-    }
-
-    public void waitStarted() throws InterruptedException {
-      for (final var verticle : verticles) {
-        verticle.waitStarted();
-      }
-    }
-
-    public void waitStarted(int... idx) throws InterruptedException {
-      for (final int i : idx) {
-        verticles[i].waitStarted();
-      }
-    }
-
-    public void waitStopped() throws InterruptedException {
-      for (final var verticle : verticles) {
-        verticle.waitStarted();
-      }
-    }
-
-    public void waitStopped(int... idx) throws InterruptedException {
-      for (final int i : idx) {
-        verticles[i].waitStopped();
-      }
-    }
-
-    public void reset() {
-      for (final var verticle : verticles) {
-        verticle.reset();
-      }
-    }
-
-    public Verticle get(int i) {
-      return verticles[i];
-    }
   }
 }

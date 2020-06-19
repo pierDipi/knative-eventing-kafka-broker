@@ -2,21 +2,34 @@ package dev.knative.eventing.kafka.broker.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.knative.eventing.kafka.broker.core.EventMatcherTest.TestCase;
-import dev.knative.eventing.kafka.broker.core.proto.BrokersConfig.Trigger;
-import java.util.AbstractMap.SimpleImmutableEntry;
+import dev.knative.eventing.kafka.broker.core.config.BrokersConfig.Trigger;
+import io.cloudevents.CloudEvent;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @Execution(value = ExecutionMode.CONCURRENT)
 public class TriggerWrapperTest {
+
+  @ParameterizedTest
+  @MethodSource(value = {"equalTriggersProvider"})
+  public void testTriggerEquality(final TriggerWrapper t1, final TriggerWrapper t2) {
+    assertThat(t1).isEqualTo(t2);
+    assertThat(t1.hashCode()).isEqualTo(t2.hashCode());
+  }
+
+  @ParameterizedTest
+  @MethodSource(value = {"differentTriggersProvider"})
+  public void testTriggerDifference(final TriggerWrapper t1, final TriggerWrapper t2) {
+    assertThat(t1).isNotEqualTo(t2);
+    assertThat(t1.hashCode()).isNotEqualTo(t2.hashCode());
+  }
 
   @Test
   public void idCallShouldBeDelegatedToWrappedTrigger() {
@@ -42,29 +55,27 @@ public class TriggerWrapperTest {
   // test if filter returned by filter() agrees with EventMatcher
   @ParameterizedTest
   @MethodSource(value = "dev.knative.eventing.kafka.broker.core.EventMatcherTest#testCases")
-  public void testFilter(final TestCase testCase) {
+  public void testFilter(
+      final Map<String, String> attributes,
+      final CloudEvent event,
+      final boolean shouldMatch) {
     final var triggerWrapper = new TriggerWrapper(
         Trigger.newBuilder()
-            .putAllAttributes(testCase.attributes)
+            .putAllAttributes(attributes)
             .build()
     );
 
     final var filter = triggerWrapper.filter();
 
-    final var match = filter.match(testCase.event);
+    final var match = filter.match(event);
 
-    assertThat(match).isEqualTo(testCase.shouldMatch);
+    assertThat(match).isEqualTo(shouldMatch);
   }
 
-  /**
-   * @return a stream of pairs that are semantically different.
-   * @see dev.knative.eventing.kafka.broker.core.TriggerTest#testTriggerDifference(Entry)
-   */
-  @SuppressWarnings("rawtypes")
-  public static Stream<Entry<dev.knative.eventing.kafka.broker.core.Trigger, dev.knative.eventing.kafka.broker.core.Trigger>> differentTriggersProvider() {
+  public static Stream<Arguments> differentTriggersProvider() {
     return Stream.of(
         // trigger's destination is different
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .putAllAttributes(Collections.emptyMap())
@@ -81,7 +92,7 @@ public class TriggerWrapperTest {
             )
         ),
         // trigger's attributes are different
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .putAllAttributes(Map.of(
@@ -107,7 +118,7 @@ public class TriggerWrapperTest {
                 .build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .putAllAttributes(Map.of(
@@ -134,7 +145,7 @@ public class TriggerWrapperTest {
             )
         ),
         // trigger's id is different
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .putAllAttributes(Map.of(
@@ -163,14 +174,9 @@ public class TriggerWrapperTest {
     );
   }
 
-  /**
-   * @return a stream of pairs that are semantically equivalent.
-   * @see dev.knative.eventing.kafka.broker.core.TriggerTest#testTriggerEquality(Entry)
-   */
-  @SuppressWarnings("rawtypes")
-  public static Stream<Map.Entry<dev.knative.eventing.kafka.broker.core.Trigger, dev.knative.eventing.kafka.broker.core.Trigger>> equalTriggersProvider() {
+  public static Stream<Arguments> equalTriggersProvider() {
     return Stream.of(
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .putAllAttributes(Map.of(
@@ -196,7 +202,7 @@ public class TriggerWrapperTest {
                 .build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .build()
@@ -206,7 +212,7 @@ public class TriggerWrapperTest {
                 .build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .setId("1234")
@@ -218,7 +224,7 @@ public class TriggerWrapperTest {
                 .build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .build()
@@ -228,7 +234,7 @@ public class TriggerWrapperTest {
                 .build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .setDestination("dest")
@@ -240,7 +246,7 @@ public class TriggerWrapperTest {
                 .build()
             )
         ),
-        new SimpleImmutableEntry<>(
+        Arguments.of(
             new TriggerWrapper(Trigger
                 .newBuilder()
                 .putAllAttributes(Map.of(

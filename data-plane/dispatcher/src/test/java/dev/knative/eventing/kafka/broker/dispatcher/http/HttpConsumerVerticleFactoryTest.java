@@ -5,12 +5,13 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.KEY_DESERIALIZER_
 import static org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.knative.eventing.kafka.broker.core.Broker;
+import dev.knative.eventing.kafka.broker.core.EventMatcher;
 import dev.knative.eventing.kafka.broker.core.Filter;
 import dev.knative.eventing.kafka.broker.core.Trigger;
-import dev.knative.eventing.kafka.broker.core.EventMatcher;
-import dev.knative.eventing.kafka.broker.dispatcher.ConsumerOffsetManagerFactory;
+import dev.knative.eventing.kafka.broker.dispatcher.ConsumerRecordOffsetStrategyFactory;
 import io.cloudevents.CloudEvent;
 import io.cloudevents.kafka.CloudEventDeserializer;
 import io.cloudevents.kafka.CloudEventSerializer;
@@ -27,7 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 public class HttpConsumerVerticleFactoryTest {
 
   @Test
-  public void get(final Vertx vertx) {
+  public void shouldAlwaysSucceed(final Vertx vertx) {
 
     final var consumerProperties = new Properties();
     consumerProperties.setProperty(BOOTSTRAP_SERVERS_CONFIG, "0.0.0.0:9092");
@@ -43,14 +44,14 @@ public class HttpConsumerVerticleFactoryTest {
         .setProperty(VALUE_SERIALIZER_CLASS_CONFIG, CloudEventSerializer.class.getName());
 
     final var verticleFactory = new HttpConsumerVerticleFactory(
-        ConsumerOffsetManagerFactory.create(),
+        ConsumerRecordOffsetStrategyFactory.create(),
         consumerProperties,
         vertx.createHttpClient(),
         vertx,
         producerConfigs
     );
 
-    verticleFactory.get(
+    final var consumerFactoryFuture = verticleFactory.get(
         new Broker() {
           @Override
           public String id() {
@@ -84,5 +85,7 @@ public class HttpConsumerVerticleFactoryTest {
           }
         }
     );
+
+    assertThat(consumerFactoryFuture.succeeded()).isTrue();
   }
 }
