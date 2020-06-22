@@ -7,8 +7,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,10 +21,9 @@ public class ObjectsCreator implements Consumer<Brokers> {
 
   private static final Logger logger = LoggerFactory.getLogger(ObjectsCreator.class);
 
+  private static final int WAIT_TIMEOUT = 1;
+
   private final ObjectsReconciler<CloudEvent> objectsReconciler;
- 
-  @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
-  private final BlockingQueue<Boolean> queue;
 
   /**
    * All args constructor.
@@ -35,7 +34,6 @@ public class ObjectsCreator implements Consumer<Brokers> {
     Objects.requireNonNull(objectsReconciler, "provider objectsReconciler");
 
     this.objectsReconciler = objectsReconciler;
-    queue = new ArrayBlockingQueue<>(1);
   }
 
   /**
@@ -64,17 +62,19 @@ public class ObjectsCreator implements Consumer<Brokers> {
     }
 
     try {
+      final var latch = new CountDownLatch(1);
       objectsReconciler.reconcile(objects).onComplete(result -> {
         if (result.succeeded()) {
           logger.debug("reconciled objects {}", brokers);
         } else {
           logger.error("failed to reconcile {}", brokers);
         }
-        queue.add(true);
+        latch.countDown();
       });
 
       // wait the reconcilation
-      queue.take();
+      latch.await(WAIT_TIMEOUT, TimeUnit.MINUTES);
+
     } catch (final Exception ex) {
       logger.error("failed to reconcile objects - cause {} - objects {}", ex, objects);
     }

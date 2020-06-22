@@ -81,8 +81,6 @@ public class Main {
 
     } catch (InterruptedException | IOException ex) {
       logger.error("failed during filesystem watch", ex);
-    } finally {
-      vertx.close();
     }
   }
 
