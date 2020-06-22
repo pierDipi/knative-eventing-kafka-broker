@@ -11,7 +11,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <java.version>11</java.version>
+    <java.version>14</java.version>
     <!-- dependencies version -->
     <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
     <maven.surefire.plugin.version>3.0.0-M5</maven.surefire.plugin.version>
@@ -25,6 +25,8 @@
     <vertx.version>3.9.1</vertx.version>
     <cloudevents.sdk.version>2.0.0-SNAPSHOT</cloudevents.sdk.version>
     <assertj.version>3.16.1</assertj.version>
+    <protobuf.version>3.12.2</protobuf.version>
+    <build.helper.maven.plugin.version>3.1.0</build.helper.maven.plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -43,6 +45,7 @@
     <module>core</module>
     <module>receiver</module>
     <module>dispatcher</module>
+    <module>generated</module>
   </modules>
 
   <build>
@@ -76,7 +79,6 @@
           <failOnViolation>true</failOnViolation>
           <violationSeverity>warning</violationSeverity>
           <linkXRef>false</linkXRef>
-          <excludes>**/proto/*.java</excludes>
           <suppressionsLocation>${user.dir}/checkstyle/suppression.xml</suppressionsLocation>
         </configuration>
         <executions>
@@ -93,6 +95,9 @@
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>${jacoco.plugin.version}</version>
+        <configuration>
+          <excludes>**/proto/**</excludes>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -165,9 +170,30 @@
     </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
+      <artifactId>vertx-circuit-breaker</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
+      <artifactId>vertx-config</artifactId>
+      <version>${vertx.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.vertx</groupId>
       <artifactId>vertx-junit5</artifactId>
       <version>${vertx.version}</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java-util</artifactId>
+      <version>${protobuf.version}</version>
     </dependency>
 
     <!-- TODO(pierDipi) structured logging  -->
@@ -183,19 +209,13 @@
       <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
-    <!--
-    TODO without junit-jupiter-engine maven-surefire-plugin fails
-        org.apache.maven.surefire.booter.SurefireBooterForkException: There was an error in the
-        forked processorg/junit/platform/engine/EngineDiscoveryListener
-        (probably due to versions)
-        https://github.com/pierDipi/knative-eventing-kafka-broker/pull/3/files#r435924951
-    -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-engine</artifactId>
       <version>${junit.jupiter.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-junit-jupiter</artifactId>
@@ -209,5 +229,6 @@
       <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
+
   </dependencies>
 </project>

@@ -45,20 +45,15 @@ function dispatcher_build_push() {
   echo "Building dispatcher ..."
 
   docker build -f build/dispatcher/Dockerfile -t "${KNATIVE_KAFKA_BROKER_DISPATCHER_IMAGE}" . &&
-    push "${KNATIVE_KAFKA_BROKER_DISPATCHER_IMAGE}"
+    push "${KNATIVE_KAFKA_BROKER_DISPATCHER_IMAGE}" &&
+    with_kind "${KNATIVE_KAFKA_BROKER_DISPATCHER_IMAGE}"
+
   return $?
 }
 
 function build() {
-  # build receiver in background and then join
-  receiver_build_push &
-  # TODO(pierDipi) uncomment when dispatcher is ready
-  # dispatcher_build_push || fail_test "failed to build dispatcher"
-
-  # wait for receiver_build_push (1st background process)
-  if ! wait %1; then
-    echo "receiver build failed" | fail_test "failed to build receiver"
-  fi
+  receiver_build_push || fail_test "failed to build receiver"
+  dispatcher_build_push || fail_test "failed to build dispatcher"
 }
 
 build
